@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v5</title>
+    <title>Asistencia RRHH v6</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -37,7 +37,6 @@
         }
         @media (max-width: 768px) { #btnToggleMenu { display: flex; align-items: center; justify-content: center; } }
 
-        /* Estilo de los Botones de Filtro */
         .filter-btn { font-size: 0.75rem; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; }
         .sidebar-item { border-left: 5px solid #ccc; padding: 8px; background: white; margin-bottom: 5px; border-radius: 4px; cursor: pointer; font-size: 0.85em; border: 1px solid #eee; }
         
@@ -75,7 +74,6 @@
         </div>
 
         <input type="text" id="workerSearch" class="form-control form-control-sm mb-3" placeholder="Buscar trabajador..." onkeyup="refreshAll()">
-        
         <div id="workerList"></div>
     </div>
 
@@ -167,6 +165,7 @@
         calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
             initialView: 'dayGridMonth',
             locale: 'es',
+            firstDay: 1, // <--- AQUÍ: Establecemos Lunes como primer día
             height: '100%',
             headerToolbar: { left: 'prev,next', center: 'title', right: 'today' },
             eventClick: (info) => openEditModal(info.event)
@@ -245,8 +244,6 @@
 
     function refreshAll() {
         const search = document.getElementById('workerSearch').value.toLowerCase();
-        
-        // Filtrar datos
         const filtered = events.filter(e => {
             const matchesSearch = e.pureName.toLowerCase().includes(search);
             const matchesFilter = (currentFilter === 'all' || e.rawType === currentFilter);
