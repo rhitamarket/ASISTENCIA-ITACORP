@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH - Vista Optimizada</title>
+    <title>Asistencia RRHH v3</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -15,36 +15,26 @@
     <style>
         :root { --verde: #28a745; --azul: #007bff; --rojo: #dc3545; --negro: #343a40; }
         body { font-family: sans-serif; background: #fff; height: 100vh; margin: 0; overflow: hidden; }
-        
         .main-wrapper { display: flex; height: 100vh; width: 100vw; position: relative; }
 
-        /* SIDEBAR: En PC es lateral, en Móvil es una capa flotante */
         #sidebar { 
             width: 320px; background: #f8f9fa; border-right: 1px solid #ddd; 
             overflow-y: auto; padding: 15px; flex-shrink: 0; z-index: 2000; 
             transition: transform 0.3s ease; 
         }
 
-        #calendar-container { 
-            flex-grow: 1; height: 100vh; width: 100%; position: relative; padding: 0; 
-        }
+        #calendar-container { flex-grow: 1; height: 100vh; position: relative; padding: 0; }
 
-        /* AJUSTES ESPECÍFICOS PARA MÓVIL */
         @media (max-width: 768px) {
             #sidebar { 
                 position: absolute; left: 0; top: 0; height: 100%; 
-                transform: translateX(-100%); /* Oculto por defecto */
+                transform: translateX(-100%); /* OCULTO POR DEFECTO EN MÓVIL */
                 width: 85%; max-width: 300px;
             }
             #sidebar.active { transform: translateX(0); box-shadow: 10px 0 20px rgba(0,0,0,0.3); }
-            
-            /* Hacer que el calendario use toda la pantalla */
-            .fc { font-size: 0.85rem; }
-            .fc-toolbar { padding: 5px !important; margin-bottom: 5px !important; }
-            .fc-toolbar-title { font-size: 1.1rem !important; }
+            .fc-toolbar-title { font-size: 1rem !important; }
         }
 
-        /* Botón de Menú Flotante (Solo Móvil) */
         #btnToggleMenu { 
             position: fixed; bottom: 20px; right: 20px; z-index: 3000; 
             border-radius: 50%; width: 60px; height: 60px; font-size: 24px; 
@@ -52,13 +42,13 @@
         }
         @media (max-width: 768px) { #btnToggleMenu { display: flex; align-items: center; justify-content: center; } }
 
-        .hidden { display: none; }
-        .sidebar-item { border-left: 5px solid #ccc; padding: 8px; background: white; margin-bottom: 5px; border-radius: 4px; cursor: pointer; font-size: 0.85em; border: 1px solid #eee; border-left-width: 5px; }
+        .sidebar-item { border-left: 5px solid #ccc; padding: 8px; background: white; margin-bottom: 5px; border-radius: 4px; cursor: pointer; font-size: 0.85em; border: 1px solid #eee; }
         .fc-event { cursor: pointer; border: none !important; }
         .cat-vacaciones { background-color: var(--verde) !important; }
         .cat-licencia { background-color: var(--azul) !important; }
         .cat-ausencia { background-color: var(--rojo) !important; }
         .cat-retiro { background-color: var(--negro) !important; }
+        .hidden-element { display: none !important; }
     </style>
 </head>
 <body>
@@ -71,15 +61,12 @@
             <h5 class="m-0">Opciones</h5>
             <button class="btn-close d-md-none" onclick="toggleSidebar()"></button>
         </div>
-
         <div class="d-grid gap-2 mb-3">
             <button class="btn btn-success" onclick="openCreateModal()">+ NUEVO REGISTRO</button>
-            <button class="btn btn-outline-dark btn-sm" onclick="exportToExcel()">Descargar Excel</button>
+            <button class="btn btn-outline-dark btn-sm" onclick="exportToExcel()">Exportar Excel</button>
         </div>
-
         <hr>
-        <h6>Historial / Buscador</h6>
-        <input type="text" id="workerSearch" class="form-control form-control-sm mb-3" placeholder="Filtrar por nombre..." onkeyup="refreshAll()">
+        <input type="text" id="workerSearch" class="form-control form-control-sm mb-3" placeholder="Buscar..." onkeyup="refreshAll()">
         <div id="workerList"></div>
     </div>
 
@@ -92,18 +79,18 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Gestión de Ausencia</h5>
+                <h5 class="modal-title">Registro</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="attendanceForm">
                     <input type="hidden" id="editId">
                     <div class="mb-3">
-                        <label class="form-label">Nombre del Trabajador</label>
-                        <input type="text" id="workerName" class="form-control" placeholder="Ej: Juan Pérez" required>
+                        <label class="form-label">Trabajador</label>
+                        <input type="text" id="workerName" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Tipo de Registro</label>
+                        <label class="form-label">Tipo</label>
                         <select id="regType" class="form-select" onchange="handleTypeChange()">
                             <option value="cat-vacaciones">Vacaciones / Permiso</option>
                             <option value="cat-licencia">Licencia Médica</option>
@@ -111,7 +98,8 @@
                             <option value="cat-retiro">Retiro Anticipado</option>
                         </select>
                     </div>
-                    <div id="divDistintivo" class="mb-3">
+                    <div id="divDistintivo" class="mb-3" style="display:none;">
+                        <label class="form-label">Subtipo</label>
                         <select id="vacDistintivo" class="form-select">
                             <option value="[V]">Vacaciones (V)</option>
                             <option value="[P]">Permiso Administrativo (P)</option>
@@ -119,11 +107,11 @@
                     </div>
                     <div class="row">
                         <div class="col-6 mb-3">
-                            <label class="form-label">Fecha Inicio</label>
+                            <label class="form-label">Inicio</label>
                             <input type="date" id="startDate" class="form-control" required>
                         </div>
-                        <div class="col-6 mb-3" id="colHasta">
-                            <label class="form-label">Fecha Fin</label>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Fin</label>
                             <input type="date" id="endDate" class="form-control">
                         </div>
                     </div>
@@ -135,14 +123,13 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-danger d-none" id="btnDelete" onclick="deleteEvent()">Eliminar</button>
-                <button type="button" class="btn btn-primary w-100" onclick="saveEvent()">Guardar Registro</button>
+                <button type="button" class="btn btn-primary w-100" onclick="saveEvent()">Guardar</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // CONFIGURACIÓN FIREBASE (Tus claves actuales)
     const firebaseConfig = {
         apiKey: "AIzaSyAQeXVFJJ1e4HWVzSY7YcerP9_XXEKnOJo",
         authDomain: "calendario-asistencia.firebaseapp.com",
@@ -155,21 +142,15 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database().ref('asistencias');
-
     let calendar;
     let events = [];
 
     document.addEventListener('DOMContentLoaded', function() {
-        const calendarEl = document.getElementById('calendar');
-        calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: window.innerWidth < 768 ? 'dayGridMonth' : 'dayGridMonth', 
+        calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+            initialView: 'dayGridMonth',
             locale: 'es',
             height: '100%',
-            headerToolbar: { 
-                left: 'prev,next', 
-                center: 'title', 
-                right: 'today' 
-            },
+            headerToolbar: { left: 'prev,next', center: 'title', right: 'today' },
             eventClick: (info) => openEditModal(info.event)
         });
         calendar.render();
@@ -182,17 +163,41 @@
         });
     });
 
-    function toggleSidebar() {
-        document.getElementById('sidebar').classList.toggle('active');
+    function handleTypeChange() {
+        const type = document.getElementById('regType').value;
+        const divDist = document.getElementById('divDistintivo');
+        // Solo mostrar si es Vacaciones/Permiso
+        if (type === 'cat-vacaciones') {
+            divDist.style.display = 'block';
+        } else {
+            divDist.style.display = 'none';
+        }
     }
 
     function openCreateModal() {
-        const modalEl = document.getElementById('eventModal');
-        const inst = bootstrap.Modal.getOrCreateInstance(modalEl);
+        const inst = bootstrap.Modal.getOrCreateInstance(document.getElementById('eventModal'));
         document.getElementById('attendanceForm').reset();
         document.getElementById('editId').value = '';
         document.getElementById('btnDelete').classList.add('d-none');
         handleTypeChange();
+        inst.show();
+    }
+
+    function openEditModal(event) {
+        const inst = bootstrap.Modal.getOrCreateInstance(document.getElementById('eventModal'));
+        const p = event.extendedProps;
+        
+        document.getElementById('editId').value = event.id;
+        document.getElementById('workerName').value = p.pureName || '';
+        document.getElementById('regType').value = p.rawType || 'cat-vacaciones';
+        document.getElementById('startDate').value = event.startStr;
+        document.getElementById('endDate').value = p.realEnd || event.startStr;
+        document.getElementById('comments').value = p.comment || '';
+        
+        if (p.distintivo) document.getElementById('vacDistintivo').value = p.distintivo;
+        
+        handleTypeChange(); // Esto ocultará o mostrará el subtipo según corresponda
+        document.getElementById('btnDelete').classList.remove('d-none');
         inst.show();
     }
 
@@ -201,55 +206,39 @@
         const worker = document.getElementById('workerName').value;
         const start = document.getElementById('startDate').value;
         const type = document.getElementById('regType').value;
-        let end = document.getElementById('endDate').value || start;
+        const end = document.getElementById('endDate').value || start;
+        const dist = (type === 'cat-vacaciones') ? document.getElementById('vacDistintivo').value : '';
 
-        if (!worker || !start) return alert("Nombre y Fecha son requeridos");
+        if (!worker || !start) return alert("Faltan datos");
 
-        const payload = {
-            title: worker + (type === 'cat-vacaciones' ? ' ' + document.getElementById('vacDistintivo').value : ''),
+        const data = {
+            title: worker + (dist ? ' ' + dist : ''),
             start: start,
             end: end,
+            realEnd: end,
             pureName: worker,
             rawType: type,
+            distintivo: dist,
             comment: document.getElementById('comments').value,
             className: [type]
         };
 
-        if (id) db.child(id).update(payload);
-        else db.push(payload);
+        if (id) db.child(id).update(data);
+        else db.push(data);
 
         bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
-        if(window.innerWidth < 768) toggleSidebar(); // Cerrar panel tras guardar
+        if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('active');
     }
 
     function refreshAll() {
         calendar.removeAllEvents();
         calendar.addEventSource(events);
-        
         const list = document.getElementById('workerList');
-        const search = document.getElementById('workerSearch').value.toLowerCase();
         list.innerHTML = '';
-        
-        events.filter(e => e.pureName.toLowerCase().includes(search))
-              .sort((a,b) => new Date(b.start) - new Date(a.start))
-              .forEach(ev => {
+        events.forEach(ev => {
             list.innerHTML += `<div class="sidebar-item" onclick="openEditById('${ev.id}')">
-                <strong>${ev.pureName}</strong><br><small>${ev.start}</small>
-            </div>`;
+                <strong>${ev.pureName}</strong> - ${ev.start}</div>`;
         });
-    }
-
-    function openEditModal(event) {
-        const modalEl = document.getElementById('eventModal');
-        const inst = bootstrap.Modal.getOrCreateInstance(modalEl);
-        
-        document.getElementById('editId').value = event.id;
-        document.getElementById('workerName').value = event.extendedProps.pureName;
-        document.getElementById('startDate').value = event.startStr;
-        document.getElementById('regType').value = event.extendedProps.rawType;
-        document.getElementById('btnDelete').classList.remove('d-none');
-        
-        inst.show();
     }
 
     function openEditById(id) {
@@ -258,16 +247,14 @@
     }
 
     function deleteEvent() {
-        const id = document.getElementById('editId').value;
-        if(confirm("¿Eliminar?") && id) {
-            db.child(id).remove();
+        if(confirm("¿Eliminar?")) {
+            db.child(document.getElementById('editId').value).remove();
             bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
         }
     }
 
-    function handleTypeChange() {
-        const type = document.getElementById('regType').value;
-        document.getElementById('divDistintivo').style.display = (type === 'cat-vacaciones') ? 'block' : 'none';
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('active');
     }
 </script>
 </body>
