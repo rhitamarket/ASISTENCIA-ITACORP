@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v10</title>
+    <title>Asistencia RRHH v11</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -25,7 +25,7 @@
             flex-shrink: 0; z-index: 2000; transition: transform 0.3s ease; 
         }
 
-        #calendar-container { flex-grow: 1; height: 100vh; position: relative; padding: 0; background: white; }
+        #calendar-container { flex-grow: 1; height: 100vh; position: relative; background: white; }
 
         @media (max-width: 768px) {
             #sidebar { position: absolute; left: 0; top: 0; height: 100%; transform: translateX(-100%); width: 85%; max-width: 300px; }
@@ -39,24 +39,43 @@
         }
         @media (max-width: 768px) { #btnToggleMenu { display: flex; align-items: center; justify-content: center; } }
 
-        /* Colores de Eventos con Force Print */
-        .fc-event { cursor: pointer; border: none !important; color: white !important; }
-        .cat-vacaciones { background-color: var(--verde) !important; border-left: 10px solid darkgreen !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .cat-licencia { background-color: var(--azul) !important; border-left: 10px solid darkblue !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .cat-ausencia { background-color: var(--rojo) !important; border-left: 10px solid darkred !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .cat-retiro { background-color: var(--negro) !important; border-left: 10px solid #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        /* Estilos de Eventos */
+        .fc-event { cursor: pointer; border: none !important; color: white !important; font-size: 0.85em; }
+        .cat-vacaciones { background-color: var(--verde) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .cat-licencia { background-color: var(--azul) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .cat-ausencia { background-color: var(--rojo) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .cat-retiro { background-color: var(--negro) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-        /* CONFIGURACIÓN DE IMPRESIÓN HORIZONTAL */
+        /* SUPER AJUSTE PARA IMPRESIÓN TAMAÑO CARTA HORIZONTAL */
         @media print {
-            @page { size: landscape; margin: 5mm; }
-            #sidebar, #btnToggleMenu, .fc-header-toolbar button { display: none !important; }
-            #calendar-container { width: 100% !important; height: 100% !important; position: absolute !important; top: 0; left: 0; }
-            .fc-view-harness { height: 90vh !important; }
+            @page { 
+                size: letter landscape; 
+                margin: 0.5cm; 
+            }
+            
+            body { visibility: hidden; overflow: visible !important; }
+            
+            #sidebar, #btnToggleMenu, .fc-header-toolbar { display: none !important; }
+
+            #calendar-container { 
+                visibility: visible;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 10.5in !important; /* Ancho aproximado hoja carta horizontal */
+                height: 8in !important;   /* Alto aproximado hoja carta horizontal */
+                transform: scale(0.95);    /* Reducción ligera para márgenes */
+                transform-origin: top left;
+            }
+
+            .fc { font-size: 10px !important; } /* Texto más pequeño para que quepa */
+            .fc-view-harness { height: 100% !important; }
             .fc-scroller { overflow: visible !important; height: auto !important; }
-            body { visibility: hidden; }
-            #calendar-container, #calendar-container * { visibility: visible; }
-            /* Asegurar que el texto sea blanco en los bloques de color */
-            .fc-event-title, .fc-event-time { color: white !important; font-weight: bold !important; }
+            
+            /* Asegurar que se vean las líneas de la tabla */
+            .fc-theme-standard td, .fc-theme-standard th { 
+                border: 1px solid #ddd !important; 
+            }
         }
     </style>
 </head>
@@ -67,15 +86,15 @@
 <div class="main-wrapper">
     <div id="sidebar">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="m-0">Asistencia Magdalena</h5>
+            <h5 class="m-0">Gestión Caro</h5>
             <button class="btn-close d-md-none" onclick="toggleSidebar()"></button>
         </div>
         
         <div class="d-grid gap-2 mb-3">
             <button class="btn btn-success" onclick="openCreateModal()">+ NUEVO REGISTRO</button>
-            <button class="btn btn-primary btn-sm" onclick="exportToExcel()">Descargar Excel</button>
-            <button class="btn btn-danger btn-sm" onclick="exportToPDF()">Descargar PDF Listado</button>
-            <button class="btn btn-dark btn-sm" onclick="window.print()">DESCARGAR CALENDARIO (PDF)</button>
+            <button class="btn btn-primary btn-sm" onclick="exportToExcel()">Excel</button>
+            <button class="btn btn-danger btn-sm" onclick="exportToPDF()">PDF Listado</button>
+            <button class="btn btn-dark btn-sm" onclick="window.print()">CALENDARIO CARTA (PDF)</button>
         </div>
 
         <hr>
@@ -89,8 +108,6 @@
 
         <input type="text" id="workerSearch" class="form-control form-control-sm mb-3" placeholder="Buscar trabajador..." onkeyup="refreshAll()">
         <div id="workerList" style="flex-grow: 1; overflow-y: auto;"></div>
-        <hr>
-        <div class="d-grid"><button class="btn btn-outline-danger btn-sm" onclick="exitToMain()">SALIR AL MENÚ</button></div>
     </div>
 
     <div id="calendar-container">
@@ -101,17 +118,11 @@
 <div class="modal fade" id="eventModal" tabindex="-1" style="z-index: 3100;">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Gestión de Registro</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
+            <div class="modal-header"><h5 class="modal-title">Registro</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
                 <form id="attendanceForm">
                     <input type="hidden" id="editId">
-                    <div class="mb-3">
-                        <label class="form-label">Trabajador</label>
-                        <input type="text" id="workerName" class="form-control" required>
-                    </div>
+                    <div class="mb-3"><label class="form-label">Trabajador</label><input type="text" id="workerName" class="form-control" required></div>
                     <div class="mb-3">
                         <label class="form-label">Tipo</label>
                         <select id="regType" class="form-select" onchange="handleTypeChange()">
@@ -121,26 +132,11 @@
                             <option value="cat-retiro">Retiro Anticipado</option>
                         </select>
                     </div>
-                    <div id="divDistintivo" class="mb-3" style="display:none;">
-                        <label class="form-label">Subtipo</label>
-                        <select id="vacDistintivo" class="form-select">
-                            <option value="[V]">Vacaciones (V)</option>
-                            <option value="[P]">Permiso Administrativo (P)</option>
-                        </select>
-                    </div>
-                    <div id="divHoraRetiro" class="mb-3" style="display:none;">
-                        <label class="form-label">Hora de Retiro</label>
-                        <input type="time" id="retiroTime" class="form-control">
-                    </div>
+                    <div id="divDistintivo" class="mb-3" style="display:none;"><select id="vacDistintivo" class="form-select"><option value="[V]">Vacaciones (V)</option><option value="[P]">Permiso (P)</option></select></div>
+                    <div id="divHoraRetiro" class="mb-3" style="display:none;"><input type="time" id="retiroTime" class="form-control"></div>
                     <div class="row">
-                        <div class="col-6 mb-3">
-                            <label class="form-label">Inicio</label>
-                            <input type="date" id="startDate" class="form-control" required>
-                        </div>
-                        <div class="col-6 mb-3" id="divFechaFin">
-                            <label class="form-label">Fin</label>
-                            <input type="date" id="endDate" class="form-control">
-                        </div>
+                        <div class="col-6 mb-3"><label class="form-label">Inicio</label><input type="date" id="startDate" class="form-control" required></div>
+                        <div class="col-6 mb-3" id="divFechaFin"><label class="form-label">Fin</label><input type="date" id="endDate" class="form-control"></div>
                     </div>
                     <div class="mb-3"><label class="form-label">Obs.</label><textarea id="comments" class="form-control"></textarea></div>
                 </form>
@@ -174,7 +170,7 @@
             locale: 'es',
             firstDay: 1,
             height: '100%',
-            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,listMonth' },
+            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth' },
             eventClick: (info) => openEditModal(info.event)
         });
         calendar.render();
@@ -187,23 +183,20 @@
     });
 
     function exportToExcel() {
-        const rows = events.map(e => ({ Trabajador: e.pureName, Tipo: e.rawType.replace('cat-',''), Inicio: e.start, Fin: e.realEnd, Detalle: (e.distintivo||'')+' '+(e.retiroTime||''), Comentarios: e.comment||'' }));
+        const rows = events.map(e => ({ Trabajador: e.pureName, Tipo: e.rawType, Inicio: e.start, Fin: e.realEnd, Detalle: (e.distintivo||'')+' '+(e.retiroTime||''), Obs: e.comment||'' }));
         const ws = XLSX.utils.json_to_sheet(rows);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Asistencias");
-        XLSX.writeFile(wb, "Reporte_Asistencia.xlsx");
+        XLSX.writeFile(wb, "Reporte.xlsx");
     }
 
     function exportToPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         doc.text("Reporte de Asistencia", 14, 15);
-        doc.autoTable({ head: [['Trabajador', 'Estado', 'Inicio', 'Fin', 'Obs']], body: events.map(e => [e.pureName, e.rawType.replace('cat-',''), e.start, e.realEnd, e.comment||'']), startY: 25 });
-        doc.save("Reporte_Asistencia.pdf");
+        doc.autoTable({ head: [['Trabajador', 'Tipo', 'Inicio', 'Fin']], body: events.map(e => [e.pureName, e.rawType, e.start, e.realEnd]), startY: 25 });
+        doc.save("Reporte.pdf");
     }
-
-    function forceCloseSidebar() { if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('active'); }
-    function setFilter(type) { currentFilter = type; refreshAll(); }
 
     function handleTypeChange() {
         const type = document.getElementById('regType').value;
@@ -213,7 +206,7 @@
     }
 
     function openCreateModal() {
-        forceCloseSidebar();
+        if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('active');
         const inst = bootstrap.Modal.getOrCreateInstance(document.getElementById('eventModal'));
         document.getElementById('attendanceForm').reset();
         document.getElementById('editId').value = '';
@@ -223,7 +216,7 @@
     }
 
     function openEditModal(event) {
-        forceCloseSidebar();
+        if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('active');
         const inst = bootstrap.Modal.getOrCreateInstance(document.getElementById('eventModal'));
         const p = event.extendedProps;
         document.getElementById('editId').value = event.id;
@@ -246,8 +239,8 @@
         const type = document.getElementById('regType').value;
         const hora = document.getElementById('retiroTime').value;
         let end = (type === 'cat-retiro') ? start : (document.getElementById('endDate').value || start);
-        const dist = (type === 'cat-vacaciones') ? document.getElementById('vacDistintivo').value : '';
         if (!worker || !start) return alert("Faltan datos");
+        const dist = (type === 'cat-vacaciones') ? document.getElementById('vacDistintivo').value : '';
         const data = { title: worker+(dist?' '+dist:'')+(hora?' '+hora:''), start, end, realEnd: end, pureName: worker, rawType: type, distintivo: dist, retiroTime: hora, comment: document.getElementById('comments').value, className: [type] };
         if (id) db.child(id).update(data); else db.push(data);
         bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
