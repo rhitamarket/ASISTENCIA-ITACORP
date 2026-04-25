@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Asistencia Online - Mobile Ready</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        :root { --verde: #28a745; --azul: #007bff; --rojo: #dc3545; --negro: #343a40; }
+        
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; height: 100vh; overflow: hidden; margin: 0; }
+
+        /* Estructura Principal */
+        .main-wrapper { display: flex; height: 100vh; width: 100vw; position: relative; }
+        
+        /* Sidebar Adaptativo */
+        #sidebar { 
+            width: 320px; background: white; border-right: 1px solid #ddd; 
+            overflow-y: auto; padding: 15px; flex-shrink: 0; transition: all 0.3s ease;
+            z-index: 1050;
+        }
+
+        #calendar-container { flex-grow: 1; background: white; padding: 5px; height: 100vh; position: relative; }
+
+        /* Ajustes para Móvil (Pantallas menores a 768px) */
+        @media (max-width: 768px) {
+            #sidebar { 
+                position: absolute; left: -100%; height: 100%; width: 280px; box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+            }
+            #sidebar.active { left: 0; }
+            .fc-toolbar { flex-direction: column; gap: 5px; }
+            .fc-toolbar-title { font-size: 1.1rem !important; }
+        }
+
+        /* Botón de Menú para Celular */
+        #btnToggleMenu { 
+            position: fixed; bottom: 20px; left: 20px; z-index: 2000; 
+            border-radius: 50%; width: 50px; height: 50px; display: none;
+        }
+        @media (max-width: 768px) { #btnToggleMenu { display: block; } }
+
+        /* Botones Flotantes Superiores */
+        #topActions { position: absolute; top: 10px; right: 10px; z-index: 1000; display: flex; gap: 5px; }
+
+        /* Estilos de Calendario y Eventos */
+        .fc-event { cursor: pointer; border: none !important; padding: 2px; font-size: 0.75em; }
+        .cat-vacaciones { background-color: var(--verde) !important; }
+        .cat-licencia { background-color: var(--azul) !important; }
+        .cat-ausencia { background-color: var(--rojo) !important; }
+        .cat-retiro { background-color: var(--negro) !important; }
+
+        .sidebar-item { border-left: 5px solid #ccc; margin-bottom: 8px; padding: 8px; background: #f9f9f9; font-size: 0.8em; border-radius: 4px; }
+        .type-pill { font-size: 0.7em; padding: 2px 6px; border-radius: 10px; color: white; display: inline-block; margin-top: 3px; }
+        
+        .filter-pill { cursor: pointer; padding: 4px 10px; font-size: 0.75em; border-radius: 15px; border: 1px solid #ddd; display: inline-block; margin: 2px; }
+        .filter-pill.active { background: var(--azul); color: white; }
+    </style>
+</head>
+<body>
+
+<button id="btnToggleMenu" class="btn btn-primary shadow" onclick="toggleSidebar()">☰</button>
+
+<div class="main-wrapper">
+    <div id="sidebar">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="m-0">Panel</h5>
+            <button class="btn-close d-md-none" onclick="toggleSidebar()"></button>
+        </div>
+        
+        <input type="text" id="workerSearch" class="form-control form-control-sm mb-2" placeholder="🔍 Buscar..." onkeyup="refreshAll()">
+        
+        <div id="typeFilters" class="mb-3">
+            <span class="filter-pill active" onclick="setFilter('all', this)">Todos</span>
+            <span class="filter-pill" onclick="setFilter('cat-vacaciones', this)">Vac</span>
+            <span class="filter-pill" onclick="setFilter('cat-licencia', this)">Med</span>
+            <span class="filter-pill" onclick="setFilter('cat-ausencia', this)">Aus</span>
+            <span class="filter-pill" onclick="setFilter('cat-retiro', this)">Ret</span>
+        </div>
+
+        <div class="d-grid gap-2 mb-3">
+            <button class="btn btn-primary btn-sm" onclick="openCreateModal()">+ Nuevo Registro</button>
+            <button class="btn btn-outline-success btn-sm" onclick="exportToExcel()">📊 Exportar Excel</button>
+        </div>
+
+        <div id="workerList"></div>
+    </div>
+
+    <div id="calendar-container">
+        <div id="topActions">
+            <button class="btn btn-dark btn-sm shadow-sm" onclick="toggleFullScreen()">📺 Full</button>
+        </div>
+        <div id="calendar"></div>
+    </div>
+</div>
+
+<div class="modal fade" id="eventModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">Detalle de Asistencia</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3">
+                <form id="attendanceForm">
+                    <input type="hidden" id="editId">
+                    <div class="mb-2">
+                        <label class="form-label small">Nombre del Trabajador</label>
+                        <input type="text" id="workerName" class="form-control" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Tipo de Ausencia</label>
+                        <select id="regType" class="form-select" onchange="handleTypeChange()">
+                            <option value="cat-vacaciones">Vacaciones / Permiso</option>
+                            <option value="cat-licencia">Licencia Médica</option>
+                            <option value="cat-ausencia">Ausencia</option>
+                            <option value="cat-retiro">Retiro Anticipado</option>
+                        </select>
+                    </div>
+                    <div id="divDistintivo" class="mb-2 hidden">
+                        <select id="vacDistintivo" class="form-select form-select-sm">
+                            <option value="[V]">Vacaciones (V)</option>
+                            <option value="[P]">Permiso con Goce (P)</option>
+                        </select>
+                    </div>
+                    <div id="divHoraRetiro" class="mb-2 hidden">
+                        <input type="time" id="retiroTime" class="form-control">
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="small">Desde</label>
+                            <input type="date" id="startDate" class="form-control" required>
+                        </div>
+                        <div class="col-6" id="colHasta">
+                            <label class="small">Hasta</label>
+                            <input type="date" id="endDate" class="form-control">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="small">Observaciones</label>
+                        <textarea id="comments" class="form-control" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer p-2">
+                <button type="button" class="btn btn-danger btn-sm d-none" id="btnDelete" onclick="deleteEvent()">Eliminar</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveEvent()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // REEMPLAZA CON TUS CLAVES DE FIREBASE AQUÍ
+    const firebaseConfig = {
+        apiKey: "AIzaSyAQeXVFJJ1e4HWVzSY7YcerP9_XXEKnOJo",
+        authDomain: "calendario-asistencia.firebaseapp.com",
+        databaseURL: "https://calendario-asistencia-default-rtdb.firebaseio.com",
+        projectId: "calendario-asistencia",
+        storageBucket: "calendario-asistencia.firebasestorage.app",
+        messagingSenderId: "534554105950",
+        appId: "1:534554105950:web:0f23d9661812309f11fccf"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database().ref('asistencias');
+
+    let calendar;
+    let events = [];
+    let currentFilter = 'all';
+    const myModal = new bootstrap.Modal(document.getElementById('eventModal'));
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initCalendar();
+        syncWithFirebase();
+    });
+
+    function initCalendar() {
+        const calendarEl = document.getElementById('calendar');
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: window.innerWidth < 768 ? 'listMonth' : 'dayGridMonth',
+            locale: 'es',
+            firstDay: 1,
+            height: '100%',
+            handleWindowResize: true,
+            windowResize: function(view) {
+                if (window.innerWidth < 768) calendar.changeView('listMonth');
+                else calendar.changeView('dayGridMonth');
+            },
+            headerToolbar: { 
+                left: 'prev,next today', 
+                center: 'title', 
+                right: window.innerWidth < 768 ? '' : 'dayGridMonth,listMonth' 
+            },
+            eventClick: (info) => openEditModal(info.event),
+            eventDisplay: 'block'
+        });
+        calendar.render();
+    }
+
+    function syncWithFirebase() {
+        db.on('value', (snapshot) => {
+            const data = snapshot.val();
+            events = [];
+            if (data) Object.keys(data).forEach(key => events.push({ id: key, ...data[key] }));
+            refreshAll();
+        });
+    }
+
+    function saveEvent() {
+        const id = document.getElementById('editId').value;
+        const type = document.getElementById('regType').value;
+        const start = document.getElementById('startDate').value;
+        let end = (type === 'cat-retiro') ? start : document.getElementById('endDate').value;
+        const worker = document.getElementById('workerName').value;
+        const dist = (type === 'cat-vacaciones') ? document.getElementById('vacDistintivo').value : '';
+
+        if(!worker || !start || !end) return alert("Completa los campos");
+
+        let endObj = new Date(end);
+        endObj.setDate(endObj.getDate() + 1);
+
+        const data = {
+            title: `${worker} ${dist} ${document.getElementById('retiroTime').value}`,
+            start: start,
+            end: endObj.toISOString().split('T')[0],
+            className: [type],
+            pureName: worker,
+            rawType: type,
+            realEnd: end,
+            comment: document.getElementById('comments').value,
+            retiroTime: document.getElementById('retiroTime').value,
+            distintivo: dist
+        };
+
+        if (id) db.child(id).update(data);
+        else db.push(data);
+        myModal.hide();
+        if(window.innerWidth < 768) toggleSidebar();
+    }
+
+    function refreshAll() {
+        let filtered = events;
+        const search = document.getElementById('workerSearch').value.toLowerCase();
+        if(currentFilter !== 'all') filtered = filtered.filter(e => e.rawType === currentFilter);
+        if(search) filtered = filtered.filter(e => e.pureName.toLowerCase().includes(search));
+
+        calendar.removeAllEvents();
+        calendar.addEventSource(filtered);
+
+        const list = document.getElementById('workerList');
+        list.innerHTML = '';
+        filtered.sort((a,b) => new Date(b.start) - new Date(a.start)).forEach(ev => {
+            list.innerHTML += `
+                <div class="sidebar-item" onclick="focusEvent('${ev.id}')" style="border-left-color: ${getHexColor(ev.rawType)}">
+                    <strong>${ev.pureName}</strong> ${ev.distintivo || ''}
+                    <div class="type-pill" style="background:${getHexColor(ev.rawType)}">${ev.rawType.split('-')[1]}</div>
+                    <div style="font-size:0.85em;">📅 ${ev.start.split('-').reverse().join('-')}</div>
+                </div>`;
+        });
+    }
+
+    function focusEvent(id) {
+        const ev = calendar.getEventById(id);
+        if(ev) openEditModal(ev);
+    }
+
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+    
+    function setFilter(type, el) {
+        document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+        el.classList.add('active');
+        currentFilter = type;
+        refreshAll();
+    }
+
+    function handleTypeChange() {
+        const type = document.getElementById('regType').value;
+        document.getElementById('divHoraRetiro').classList.toggle('hidden', type !== 'cat-retiro');
+        document.getElementById('divDistintivo').classList.toggle('hidden', type !== 'cat-vacaciones');
+        document.getElementById('colHasta').classList.toggle('hidden', type === 'cat-retiro');
+        if(type === 'cat-retiro') document.getElementById('endDate').value = document.getElementById('startDate').value;
+    }
+
+    function openCreateModal() {
+        document.getElementById('attendanceForm').reset();
+        document.getElementById('editId').value = '';
+        document.getElementById('btnDelete').classList.add('d-none');
+        handleTypeChange();
+        myModal.show();
+    }
+
+    function openEditModal(event) {
+        document.getElementById('editId').value = event.id;
+        document.getElementById('workerName').value = event.extendedProps.pureName;
+        document.getElementById('regType').value = event.extendedProps.rawType;
+        document.getElementById('startDate').value = event.startStr;
+        document.getElementById('endDate').value = event.extendedProps.realEnd;
+        document.getElementById('comments').value = event.extendedProps.comment;
+        document.getElementById('retiroTime').value = event.extendedProps.retiroTime;
+        if(event.extendedProps.distintivo) document.getElementById('vacDistintivo').value = event.extendedProps.distintivo;
+        handleTypeChange();
+        document.getElementById('btnDelete').classList.remove('d-none');
+        myModal.show();
+    }
+
+    function deleteEvent() {
+        if(confirm("¿Eliminar?")) { db.child(document.getElementById('editId').value).remove(); myModal.hide(); }
+    }
+
+    function toggleFullScreen() {
+        document.getElementById('mainBody').classList.toggle('fullscreen-active');
+        setTimeout(() => calendar.updateSize(), 300);
+    }
+
+    function getHexColor(t) {
+        return { 'cat-vacaciones': '#28a745', 'cat-licencia': '#007bff', 'cat-ausencia': '#dc3545', 'cat-retiro': '#343a40' }[t] || '#ccc';
+    }
+
+    function exportToExcel() {
+        const data = events.map(e => ({ Trabajador: e.pureName, Tipo: e.rawType, Inicio: e.start, Fin: e.realEnd }));
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Data");
+        XLSX.writeFile(wb, "Asistencias_RRHH.xlsx");
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
