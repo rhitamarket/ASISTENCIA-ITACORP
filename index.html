@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v8</title>
+    <title>Asistencia RRHH v9</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <style>
@@ -47,7 +49,13 @@
         .cat-ausencia { background-color: var(--rojo) !important; }
         .cat-retiro { background-color: var(--negro) !important; }
 
-        #calendar-container:fullscreen { background: white; padding: 10px; }
+        /* Estilos para impresión (PDF de calendario) */
+        @media print {
+            #sidebar, #btnToggleMenu, .fc-header-toolbar button:not(.fc-today-button) { display: none !important; }
+            #calendar-container { width: 100% !important; height: auto !important; position: static !important; }
+            body { overflow: visible !important; }
+            .fc-view-harness { height: auto !important; }
+        }
     </style>
 </head>
 <body>
@@ -63,7 +71,9 @@
         
         <div class="d-grid gap-2 mb-3">
             <button class="btn btn-success" onclick="openCreateModal()">+ NUEVO REGISTRO</button>
-            <button class="btn btn-outline-dark btn-sm" onclick="exportToExcel()">Exportar Excel</button>
+            <button class="btn btn-primary btn-sm" onclick="exportToExcel()">Descargar Excel</button>
+            <button class="btn btn-danger btn-sm" onclick="exportToPDF()">Descargar PDF Listado</button>
+            <button class="btn btn-dark btn-sm" onclick="window.print()">Imprimir Calendario (PDF)</button>
         </div>
 
         <hr>
@@ -77,13 +87,9 @@
         </div>
 
         <input type="text" id="workerSearch" class="form-control form-control-sm mb-3" placeholder="Buscar trabajador..." onkeyup="refreshAll()">
-        
         <div id="workerList" style="flex-grow: 1; overflow-y: auto;"></div>
-
         <hr>
-        <div class="d-grid">
-            <button class="btn btn-danger btn-sm" onclick="exitToMain()">SALIR AL MENÚ</button>
-        </div>
+        <div class="d-grid"><button class="btn btn-outline-danger btn-sm" onclick="exitToMain()">SALIR AL MENÚ</button></div>
     </div>
 
     <div id="calendar-container">
@@ -114,7 +120,6 @@
                             <option value="cat-retiro">Retiro Anticipado</option>
                         </select>
                     </div>
-
                     <div id="divDistintivo" class="mb-3" style="display:none;">
                         <label class="form-label">Subtipo</label>
                         <select id="vacDistintivo" class="form-select">
@@ -122,12 +127,10 @@
                             <option value="[P]">Permiso Administrativo (P)</option>
                         </select>
                     </div>
-
                     <div id="divHoraRetiro" class="mb-3" style="display:none;">
                         <label class="form-label">Hora de Retiro</label>
                         <input type="time" id="retiroTime" class="form-control">
                     </div>
-
                     <div class="row">
                         <div class="col-6 mb-3">
                             <label class="form-label" id="labelFechaInicio">Fecha Inicio</label>
@@ -138,7 +141,6 @@
                             <input type="date" id="endDate" class="form-control">
                         </div>
                     </div>
-                    
                     <div class="mb-3">
                         <label class="form-label">Observaciones</label>
                         <textarea id="comments" class="form-control" rows="2"></textarea>
@@ -166,9 +168,7 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database().ref('asistencias');
-    let calendar;
-    let events = [];
-    let currentFilter = 'all';
+    let calendar, events = [], currentFilter = 'all';
 
     document.addEventListener('DOMContentLoaded', function() {
         calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
@@ -176,21 +176,10 @@
             locale: 'es',
             firstDay: 1,
             height: '100%',
-            headerToolbar: { 
-                left: 'prev,next today', 
-                center: 'title', 
-                right: 'fullScreen listMonth,dayGridMonth' 
-            },
-            customButtons: {
-                fullScreen: {
-                    text: 'Pantalla Completa',
-                    click: function() { toggleFullScreen(); }
-                }
-            },
+            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,listMonth' },
             eventClick: (info) => openEditModal(info.event)
         });
         calendar.render();
-
         db.on('value', (snapshot) => {
             const data = snapshot.val();
             events = [];
@@ -199,32 +188,39 @@
         });
     });
 
-    // Función corregida para cerrar menú al abrir registro
-    function forceCloseSidebar() {
-        if(window.innerWidth < 768) {
-            document.getElementById('sidebar').classList.remove('active');
-        }
+    // --- FUNCIONES DE EXPORTACIÓN ---
+    function exportToExcel() {
+        if (events.length === 0) return alert("No hay datos para exportar");
+        const rows = events.map(e => ({
+            Trabajador: e.pureName,
+            Tipo: e.rawType.replace('cat-', ''),
+            Inicio: e.start,
+            Fin: e.realEnd,
+            Detalle: (e.distintivo || '') + ' ' + (e.retiroTime || ''),
+            Comentarios: e.comment || ''
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Asistencias");
+        XLSX.writeFile(workbook, "Reporte_Asistencia.xlsx");
     }
 
-    function toggleFullScreen() {
-        let elem = document.getElementById("calendar-container");
-        if (!document.fullscreenElement) {
-            elem.requestFullscreen().catch(err => { console.log(err.message); });
-        } else {
-            document.exitFullscreen();
-        }
+    function exportToPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.text("Reporte de Asistencia y Permisos", 14, 15);
+        const tableData = events.map(e => [e.pureName, e.rawType.replace('cat-', ''), e.start, e.realEnd, e.comment || '']);
+        doc.autoTable({
+            head: [['Trabajador', 'Estado', 'Inicio', 'Fin', 'Obs']],
+            body: tableData,
+            startY: 25
+        });
+        doc.save("Reporte_Asistencia.pdf");
     }
 
-    function exitToMain() {
-        if(confirm("¿Deseas salir del sistema?")) {
-            window.location.href = "https://tu-pagina-principal.com";
-        }
-    }
-
-    function setFilter(type) {
-        currentFilter = type;
-        refreshAll();
-    }
+    // --- LÓGICA DE INTERFAZ ---
+    function forceCloseSidebar() { if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('active'); }
+    function setFilter(type) { currentFilter = type; refreshAll(); }
 
     function handleTypeChange() {
         const type = document.getElementById('regType').value;
@@ -235,7 +231,7 @@
     }
 
     function openCreateModal() {
-        forceCloseSidebar(); // <--- CERRAMOS EL MENÚ AQUÍ
+        forceCloseSidebar();
         const inst = bootstrap.Modal.getOrCreateInstance(document.getElementById('eventModal'));
         document.getElementById('attendanceForm').reset();
         document.getElementById('editId').value = '';
@@ -245,7 +241,7 @@
     }
 
     function openEditModal(event) {
-        forceCloseSidebar(); // <--- CERRAMOS EL MENÚ AQUÍ
+        forceCloseSidebar();
         const inst = bootstrap.Modal.getOrCreateInstance(document.getElementById('eventModal'));
         const p = event.extendedProps;
         document.getElementById('editId').value = event.id;
@@ -279,9 +275,7 @@
             comment: document.getElementById('comments').value, className: [type]
         };
 
-        if (id) db.child(id).update(data);
-        else db.push(data);
-
+        if (id) db.child(id).update(data); else db.push(data);
         bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
     }
 
@@ -292,10 +286,8 @@
             const matchesFilter = (currentFilter === 'all' || e.rawType === currentFilter);
             return matchesSearch && matchesFilter;
         });
-
         calendar.removeAllEvents();
         calendar.addEventSource(filtered);
-
         const list = document.getElementById('workerList');
         list.innerHTML = '';
         filtered.forEach(ev => {
@@ -304,21 +296,10 @@
         });
     }
 
-    function openEditById(id) {
-        const ev = calendar.getEventById(id);
-        if(ev) openEditModal(ev);
-    }
-
-    function deleteEvent() {
-        if(confirm("¿Eliminar?")) {
-            db.child(document.getElementById('editId').value).remove();
-            bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
-        }
-    }
-
-    function toggleSidebar() {
-        document.getElementById('sidebar').classList.toggle('active');
-    }
+    function openEditById(id) { const ev = calendar.getEventById(id); if(ev) openEditModal(ev); }
+    function deleteEvent() { if(confirm("¿Eliminar?")) { db.child(document.getElementById('editId').value).remove(); bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide(); } }
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+    function exitToMain() { if(confirm("¿Deseas salir?")) window.location.href = "https://tu-menu.com"; }
 </script>
 </body>
 </html>
