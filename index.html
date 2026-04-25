@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v9</title>
+    <title>Asistencia RRHH v10</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -21,9 +21,8 @@
 
         #sidebar { 
             width: 320px; background: #f8f9fa; border-right: 1px solid #ddd; 
-            display: flex; flex-direction: column;
-            overflow-y: auto; padding: 15px; flex-shrink: 0; z-index: 2000; 
-            transition: transform 0.3s ease; 
+            display: flex; flex-direction: column; overflow-y: auto; padding: 15px; 
+            flex-shrink: 0; z-index: 2000; transition: transform 0.3s ease; 
         }
 
         #calendar-container { flex-grow: 1; height: 100vh; position: relative; padding: 0; background: white; }
@@ -40,21 +39,24 @@
         }
         @media (max-width: 768px) { #btnToggleMenu { display: flex; align-items: center; justify-content: center; } }
 
-        .filter-btn { font-size: 0.72rem; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; padding: 4px; }
-        .sidebar-item { border-left: 5px solid #ccc; padding: 8px; background: white; margin-bottom: 5px; border-radius: 4px; cursor: pointer; font-size: 0.85em; border: 1px solid #eee; }
-        
-        .fc-event { cursor: pointer; border: none !important; }
-        .cat-vacaciones { background-color: var(--verde) !important; }
-        .cat-licencia { background-color: var(--azul) !important; }
-        .cat-ausencia { background-color: var(--rojo) !important; }
-        .cat-retiro { background-color: var(--negro) !important; }
+        /* Colores de Eventos con Force Print */
+        .fc-event { cursor: pointer; border: none !important; color: white !important; }
+        .cat-vacaciones { background-color: var(--verde) !important; border-left: 10px solid darkgreen !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .cat-licencia { background-color: var(--azul) !important; border-left: 10px solid darkblue !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .cat-ausencia { background-color: var(--rojo) !important; border-left: 10px solid darkred !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .cat-retiro { background-color: var(--negro) !important; border-left: 10px solid #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-        /* Estilos para impresión (PDF de calendario) */
+        /* CONFIGURACIÓN DE IMPRESIÓN HORIZONTAL */
         @media print {
-            #sidebar, #btnToggleMenu, .fc-header-toolbar button:not(.fc-today-button) { display: none !important; }
-            #calendar-container { width: 100% !important; height: auto !important; position: static !important; }
-            body { overflow: visible !important; }
-            .fc-view-harness { height: auto !important; }
+            @page { size: landscape; margin: 5mm; }
+            #sidebar, #btnToggleMenu, .fc-header-toolbar button { display: none !important; }
+            #calendar-container { width: 100% !important; height: 100% !important; position: absolute !important; top: 0; left: 0; }
+            .fc-view-harness { height: 90vh !important; }
+            .fc-scroller { overflow: visible !important; height: auto !important; }
+            body { visibility: hidden; }
+            #calendar-container, #calendar-container * { visibility: visible; }
+            /* Asegurar que el texto sea blanco en los bloques de color */
+            .fc-event-title, .fc-event-time { color: white !important; font-weight: bold !important; }
         }
     </style>
 </head>
@@ -65,7 +67,7 @@
 <div class="main-wrapper">
     <div id="sidebar">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="m-0">Panel Control</h5>
+            <h5 class="m-0">Asistencia Magdalena</h5>
             <button class="btn-close d-md-none" onclick="toggleSidebar()"></button>
         </div>
         
@@ -73,17 +75,16 @@
             <button class="btn btn-success" onclick="openCreateModal()">+ NUEVO REGISTRO</button>
             <button class="btn btn-primary btn-sm" onclick="exportToExcel()">Descargar Excel</button>
             <button class="btn btn-danger btn-sm" onclick="exportToPDF()">Descargar PDF Listado</button>
-            <button class="btn btn-dark btn-sm" onclick="window.print()">Imprimir Calendario (PDF)</button>
+            <button class="btn btn-dark btn-sm" onclick="window.print()">DESCARGAR CALENDARIO (PDF)</button>
         </div>
 
         <hr>
-        <h6>Filtrar por Estado:</h6>
         <div class="d-flex flex-wrap gap-1 mb-3">
-            <button class="btn btn-outline-secondary btn-sm flex-fill filter-btn" onclick="setFilter('all')">Todos</button>
-            <button class="btn btn-success btn-sm flex-fill filter-btn" onclick="setFilter('cat-vacaciones')">V/P</button>
-            <button class="btn btn-primary btn-sm flex-fill filter-btn" onclick="setFilter('cat-licencia')">Lic.</button>
-            <button class="btn btn-danger btn-sm flex-fill filter-btn" onclick="setFilter('cat-ausencia')">Aus.</button>
-            <button class="btn btn-dark btn-sm flex-fill filter-btn" onclick="setFilter('cat-retiro')">Ret.</button>
+            <button class="btn btn-outline-secondary btn-sm flex-fill" onclick="setFilter('all')">Todos</button>
+            <button class="btn btn-success btn-sm flex-fill" onclick="setFilter('cat-vacaciones')">V/P</button>
+            <button class="btn btn-primary btn-sm flex-fill" onclick="setFilter('cat-licencia')">Lic.</button>
+            <button class="btn btn-danger btn-sm flex-fill" onclick="setFilter('cat-ausencia')">Aus.</button>
+            <button class="btn btn-dark btn-sm flex-fill" onclick="setFilter('cat-retiro')">Ret.</button>
         </div>
 
         <input type="text" id="workerSearch" class="form-control form-control-sm mb-3" placeholder="Buscar trabajador..." onkeyup="refreshAll()">
@@ -133,18 +134,15 @@
                     </div>
                     <div class="row">
                         <div class="col-6 mb-3">
-                            <label class="form-label" id="labelFechaInicio">Fecha Inicio</label>
+                            <label class="form-label">Inicio</label>
                             <input type="date" id="startDate" class="form-control" required>
                         </div>
                         <div class="col-6 mb-3" id="divFechaFin">
-                            <label class="form-label">Fecha Fin</label>
+                            <label class="form-label">Fin</label>
                             <input type="date" id="endDate" class="form-control">
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Observaciones</label>
-                        <textarea id="comments" class="form-control" rows="2"></textarea>
-                    </div>
+                    <div class="mb-3"><label class="form-label">Obs.</label><textarea id="comments" class="form-control"></textarea></div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -188,37 +186,22 @@
         });
     });
 
-    // --- FUNCIONES DE EXPORTACIÓN ---
     function exportToExcel() {
-        if (events.length === 0) return alert("No hay datos para exportar");
-        const rows = events.map(e => ({
-            Trabajador: e.pureName,
-            Tipo: e.rawType.replace('cat-', ''),
-            Inicio: e.start,
-            Fin: e.realEnd,
-            Detalle: (e.distintivo || '') + ' ' + (e.retiroTime || ''),
-            Comentarios: e.comment || ''
-        }));
-        const worksheet = XLSX.utils.json_to_sheet(rows);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Asistencias");
-        XLSX.writeFile(workbook, "Reporte_Asistencia.xlsx");
+        const rows = events.map(e => ({ Trabajador: e.pureName, Tipo: e.rawType.replace('cat-',''), Inicio: e.start, Fin: e.realEnd, Detalle: (e.distintivo||'')+' '+(e.retiroTime||''), Comentarios: e.comment||'' }));
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Asistencias");
+        XLSX.writeFile(wb, "Reporte_Asistencia.xlsx");
     }
 
     function exportToPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        doc.text("Reporte de Asistencia y Permisos", 14, 15);
-        const tableData = events.map(e => [e.pureName, e.rawType.replace('cat-', ''), e.start, e.realEnd, e.comment || '']);
-        doc.autoTable({
-            head: [['Trabajador', 'Estado', 'Inicio', 'Fin', 'Obs']],
-            body: tableData,
-            startY: 25
-        });
+        doc.text("Reporte de Asistencia", 14, 15);
+        doc.autoTable({ head: [['Trabajador', 'Estado', 'Inicio', 'Fin', 'Obs']], body: events.map(e => [e.pureName, e.rawType.replace('cat-',''), e.start, e.realEnd, e.comment||'']), startY: 25 });
         doc.save("Reporte_Asistencia.pdf");
     }
 
-    // --- LÓGICA DE INTERFAZ ---
     function forceCloseSidebar() { if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('active'); }
     function setFilter(type) { currentFilter = type; refreshAll(); }
 
@@ -227,7 +210,6 @@
         document.getElementById('divDistintivo').style.display = (type === 'cat-vacaciones') ? 'block' : 'none';
         document.getElementById('divHoraRetiro').style.display = (type === 'cat-retiro') ? 'block' : 'none';
         document.getElementById('divFechaFin').style.display = (type === 'cat-retiro') ? 'none' : 'block';
-        document.getElementById('labelFechaInicio').innerText = (type === 'cat-retiro') ? "Fecha Retiro" : "Fecha Inicio";
     }
 
     function openCreateModal() {
@@ -265,35 +247,20 @@
         const hora = document.getElementById('retiroTime').value;
         let end = (type === 'cat-retiro') ? start : (document.getElementById('endDate').value || start);
         const dist = (type === 'cat-vacaciones') ? document.getElementById('vacDistintivo').value : '';
-
         if (!worker || !start) return alert("Faltan datos");
-
-        const data = {
-            title: worker + (dist ? ' ' + dist : '') + (hora ? ' ' + hora : ''),
-            start: start, end: end, realEnd: end, pureName: worker,
-            rawType: type, distintivo: dist, retiroTime: hora,
-            comment: document.getElementById('comments').value, className: [type]
-        };
-
+        const data = { title: worker+(dist?' '+dist:'')+(hora?' '+hora:''), start, end, realEnd: end, pureName: worker, rawType: type, distintivo: dist, retiroTime: hora, comment: document.getElementById('comments').value, className: [type] };
         if (id) db.child(id).update(data); else db.push(data);
         bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
     }
 
     function refreshAll() {
         const search = document.getElementById('workerSearch').value.toLowerCase();
-        const filtered = events.filter(e => {
-            const matchesSearch = e.pureName.toLowerCase().includes(search);
-            const matchesFilter = (currentFilter === 'all' || e.rawType === currentFilter);
-            return matchesSearch && matchesFilter;
-        });
+        const filtered = events.filter(e => e.pureName.toLowerCase().includes(search) && (currentFilter === 'all' || e.rawType === currentFilter));
         calendar.removeAllEvents();
         calendar.addEventSource(filtered);
         const list = document.getElementById('workerList');
         list.innerHTML = '';
-        filtered.forEach(ev => {
-            list.innerHTML += `<div class="sidebar-item" onclick="openEditById('${ev.id}')">
-                <strong>${ev.pureName}</strong><br><small>${ev.start}</small></div>`;
-        });
+        filtered.forEach(ev => { list.innerHTML += `<div class="sidebar-item" onclick="openEditById('${ev.id}')"><strong>${ev.pureName}</strong><br><small>${ev.start}</small></div>`; });
     }
 
     function openEditById(id) { const ev = calendar.getEventById(id); if(ev) openEditModal(ev); }
