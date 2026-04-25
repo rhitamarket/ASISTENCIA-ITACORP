@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v11</title>
+    <title>Asistencia RRHH v12</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <style>
@@ -39,43 +37,39 @@
         }
         @media (max-width: 768px) { #btnToggleMenu { display: flex; align-items: center; justify-content: center; } }
 
-        /* Estilos de Eventos */
-        .fc-event { cursor: pointer; border: none !important; color: white !important; font-size: 0.85em; }
+        .fc-event { cursor: pointer; border: none !important; color: white !important; font-size: 0.8em; }
         .cat-vacaciones { background-color: var(--verde) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .cat-licencia { background-color: var(--azul) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .cat-ausencia { background-color: var(--rojo) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .cat-retiro { background-color: var(--negro) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-        /* SUPER AJUSTE PARA IMPRESIÓN TAMAÑO CARTA HORIZONTAL */
+        /* Título de impresión oculto en pantalla */
+        #print-header { display: none; text-align: center; margin-bottom: 10px; }
+
+        /* CONFIGURACIÓN DEFINITIVA DE IMPRESIÓN */
         @media print {
-            @page { 
-                size: letter landscape; 
-                margin: 0.5cm; 
-            }
+            @page { size: letter landscape; margin: 0.3cm; }
             
             body { visibility: hidden; overflow: visible !important; }
-            
-            #sidebar, #btnToggleMenu, .fc-header-toolbar { display: none !important; }
+            #sidebar, #btnToggleMenu, .fc-header-toolbar button { display: none !important; }
+
+            #print-header { display: block; visibility: visible; font-size: 20px; font-weight: bold; }
 
             #calendar-container { 
                 visibility: visible;
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 10.5in !important; /* Ancho aproximado hoja carta horizontal */
-                height: 8in !important;   /* Alto aproximado hoja carta horizontal */
-                transform: scale(0.95);    /* Reducción ligera para márgenes */
-                transform-origin: top left;
+                position: absolute; left: 0; top: 40px; 
+                width: 100% !important; 
+                height: 90% !important;
             }
 
-            .fc { font-size: 10px !important; } /* Texto más pequeño para que quepa */
-            .fc-view-harness { height: 100% !important; }
-            .fc-scroller { overflow: visible !important; height: auto !important; }
+            .fc { max-width: 100% !important; width: 100% !important; }
+            .fc-col-header, .fc-daygrid-body, .fc-scrollgrid-sync-table { width: 100% !important; table-layout: fixed !important; }
             
-            /* Asegurar que se vean las líneas de la tabla */
-            .fc-theme-standard td, .fc-theme-standard th { 
-                border: 1px solid #ddd !important; 
-            }
+            .fc-daygrid-day { width: 14.28% !important; } /* Fuerza 1/7 de la hoja por cada día */
+            
+            .fc-view-harness { height: auto !important; }
+            .fc-scroller { overflow: visible !important; height: auto !important; }
+            .fc-daygrid-day-frame { min-height: 100px !important; }
         }
     </style>
 </head>
@@ -85,16 +79,11 @@
 
 <div class="main-wrapper">
     <div id="sidebar">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="m-0">Gestión Caro</h5>
-            <button class="btn-close d-md-none" onclick="toggleSidebar()"></button>
-        </div>
+        <h5 class="mb-3">Gestión Asistencia</h5>
         
         <div class="d-grid gap-2 mb-3">
             <button class="btn btn-success" onclick="openCreateModal()">+ NUEVO REGISTRO</button>
-            <button class="btn btn-primary btn-sm" onclick="exportToExcel()">Excel</button>
-            <button class="btn btn-danger btn-sm" onclick="exportToPDF()">PDF Listado</button>
-            <button class="btn btn-dark btn-sm" onclick="window.print()">CALENDARIO CARTA (PDF)</button>
+            <button class="btn btn-dark btn-sm" onclick="prePrint()">DESCARGAR CALENDARIO (PDF)</button>
         </div>
 
         <hr>
@@ -111,6 +100,7 @@
     </div>
 
     <div id="calendar-container">
+        <div id="print-header"></div>
         <div id="calendar"></div>
     </div>
 </div>
@@ -182,20 +172,11 @@
         });
     });
 
-    function exportToExcel() {
-        const rows = events.map(e => ({ Trabajador: e.pureName, Tipo: e.rawType, Inicio: e.start, Fin: e.realEnd, Detalle: (e.distintivo||'')+' '+(e.retiroTime||''), Obs: e.comment||'' }));
-        const ws = XLSX.utils.json_to_sheet(rows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Asistencias");
-        XLSX.writeFile(wb, "Reporte.xlsx");
-    }
-
-    function exportToPDF() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.text("Reporte de Asistencia", 14, 15);
-        doc.autoTable({ head: [['Trabajador', 'Tipo', 'Inicio', 'Fin']], body: events.map(e => [e.pureName, e.rawType, e.start, e.realEnd]), startY: 25 });
-        doc.save("Reporte.pdf");
+    // Función para actualizar el título del mes antes de imprimir
+    function prePrint() {
+        const title = document.querySelector('.fc-toolbar-title').innerText;
+        document.getElementById('print-header').innerText = "Reporte de Asistencia: " + title;
+        window.print();
     }
 
     function handleTypeChange() {
@@ -259,7 +240,6 @@
     function openEditById(id) { const ev = calendar.getEventById(id); if(ev) openEditModal(ev); }
     function deleteEvent() { if(confirm("¿Eliminar?")) { db.child(document.getElementById('editId').value).remove(); bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide(); } }
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
-    function exitToMain() { if(confirm("¿Deseas salir?")) window.location.href = "https://tu-menu.com"; }
 </script>
 </body>
 </html>
