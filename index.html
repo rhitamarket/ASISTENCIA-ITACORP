@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v8</title>
+    <title>Asistencia RRHH v8.1</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -199,7 +199,32 @@
         });
     });
 
-    // Función corregida para cerrar menú al abrir registro
+    // FUNCIÓN DE EXPORTACIÓN A EXCEL CORREGIDA
+    function exportToExcel() {
+        if (events.length === 0) {
+            return alert("No hay datos para exportar");
+        }
+
+        // Preparamos los datos para que el Excel sea legible
+        const dataToExport = events.map(ev => ({
+            "Trabajador": ev.pureName,
+            "Tipo": ev.rawType.replace('cat-', '').toUpperCase(),
+            "Subtipo": ev.distintivo || '-',
+            "Inicio": ev.start,
+            "Fin": ev.realEnd || ev.start,
+            "Hora Retiro": ev.retiroTime || '-',
+            "Observaciones": ev.comment || ''
+        }));
+
+        // Creamos la hoja de trabajo
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Asistencias");
+
+        // Generamos el archivo y disparamos la descarga
+        XLSX.writeFile(workbook, "Reporte_Asistencias.xlsx");
+    }
+
     function forceCloseSidebar() {
         if(window.innerWidth < 768) {
             document.getElementById('sidebar').classList.remove('active');
@@ -235,7 +260,7 @@
     }
 
     function openCreateModal() {
-        forceCloseSidebar(); // <--- CERRAMOS EL MENÚ AQUÍ
+        forceCloseSidebar();
         const inst = bootstrap.Modal.getOrCreateInstance(document.getElementById('eventModal'));
         document.getElementById('attendanceForm').reset();
         document.getElementById('editId').value = '';
@@ -245,7 +270,7 @@
     }
 
     function openEditModal(event) {
-        forceCloseSidebar(); // <--- CERRAMOS EL MENÚ AQUÍ
+        forceCloseSidebar();
         const inst = bootstrap.Modal.getOrCreateInstance(document.getElementById('eventModal'));
         const p = event.extendedProps;
         document.getElementById('editId').value = event.id;
