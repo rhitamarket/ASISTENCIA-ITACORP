@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v8.9 - Line Continuity</title>
+    <title>Asistencia RRHH v9.1 - Filtros Pro</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -39,31 +39,24 @@
         }
         @media (max-width: 768px) { #btnToggleMenu { display: flex; } }
 
-        /* --- ESTILO DE CONTINUIDAD PERFECTA --- */
+        /* --- CONTINUIDAD Y NOMBRE REPETIDO --- */
         .fc-event { 
-            cursor: pointer; 
-            border: none !important; 
-            padding: 3px 6px !important; 
-            border-radius: 4px !important; 
-            margin-bottom: 2px !important;
-            font-size: 0.82em;
-            font-weight: 600;
-            color: white !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer; border: none !important; padding: 2px 4px !important; 
+            border-radius: 0px !important; margin: 0.5px 0 !important;
+            font-size: 0.78em; font-weight: 600; color: white !important;
+            height: 22px; display: flex; align-items: center;
         }
+        .event-segment { border-left: 0.5px solid rgba(255,255,255,0.3) !important; }
 
-        /* Forzar que el texto sea visible en cada segmento del evento */
-        .fc-event-title-container {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .sidebar-item { border-left: 5px solid #ccc; padding: 10px; background: white; margin-bottom: 8px; border-radius: 4px; cursor: pointer; border: 1px solid #ddd; font-size: 13px; }
+        .sidebar-item { border-left: 5px solid #ccc; padding: 10px; background: white; margin-bottom: 8px; border-radius: 4px; cursor: pointer; border: 1px solid #ddd; font-size: 12px; }
+        
+        /* Colores por Categoría */
         .cat-vacaciones { background-color: var(--verde) !important; }
         .cat-licencia { background-color: var(--azul) !important; }
         .cat-ausencia { background-color: var(--rojo) !important; }
         .cat-retiro { background-color: var(--negro) !important; }
+        
+        .filter-btn { font-size: 0.75rem; font-weight: bold; padding: 4px 8px; }
     </style>
 </head>
 <body>
@@ -72,24 +65,27 @@
 
 <div class="main-wrapper">
     <div id="sidebar">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="m-0">Gestión Personal</h5>
-            <button class="btn-close d-md-none" onclick="toggleSidebar()"></button>
-        </div>
+        <h5 class="mb-3">Control RRHH</h5>
         
         <div class="d-grid gap-2 mb-3">
             <button class="btn btn-success" onclick="openCreateModal()">+ NUEVO REGISTRO</button>
-            <div class="btn-group">
-                <button class="btn btn-outline-dark btn-sm" onclick="exportToExcel()">Excel</button>
-                <button class="btn btn-outline-primary btn-sm" onclick="showKPIs()">KPI</button>
-            </div>
+            <button class="btn btn-outline-dark btn-sm" onclick="exportToExcel()">Descargar reporte Excel</button>
         </div>
 
         <hr>
-        <div class="mb-3">
-            <input type="text" id="workerSearch" class="form-control form-control-sm" placeholder="🔍 Buscar trabajador..." onkeyup="refreshAll()">
-        </div>
         
+        <div class="mb-2">
+            <input type="text" id="workerSearch" class="form-control form-control-sm" placeholder="🔍 Buscar nombre..." onkeyup="refreshAll()">
+        </div>
+
+        <div class="d-flex flex-wrap gap-1 mb-3">
+            <button class="btn btn-light border btn-sm filter-btn flex-fill" onclick="setFilter('all')">Todos</button>
+            <button class="btn btn-success btn-sm filter-btn flex-fill" onclick="setFilter('cat-vacaciones')">V/P</button>
+            <button class="btn btn-primary btn-sm filter-btn flex-fill" onclick="setFilter('cat-licencia')">Lic</button>
+            <button class="btn btn-danger btn-sm filter-btn flex-fill" onclick="setFilter('cat-ausencia')">Aus</button>
+            <button class="btn btn-dark btn-sm filter-btn flex-fill" onclick="setFilter('cat-retiro')">Ret</button>
+        </div>
+
         <div id="workerList" style="flex: 1; overflow-y: auto;"></div>
     </div>
 
@@ -175,20 +171,11 @@
             locale: 'es',
             firstDay: 1,
             height: '100%',
+            eventOrder: "title", 
             headerToolbar: { 
                 left: 'prev,next today', 
                 center: 'title', 
                 right: 'dayGridMonth,listMonth' 
-            },
-            // ESTA FUNCIÓN ES LA CLAVE: Repite el nombre en cada pedazo del evento
-            eventContent: function(arg) {
-                return {
-                    html: `<div class="fc-event-main-frame">
-                             <div class="fc-event-title-container">
-                               <div class="fc-event-title fc-sticky">${arg.event.title}</div>
-                             </div>
-                           </div>`
-                };
             },
             eventClick: (info) => openEditModalById(info.event.id)
         });
@@ -206,33 +193,42 @@
         });
     });
 
+    function setFilter(f) {
+        currentFilter = f;
+        refreshAll();
+    }
+
     function refreshAll() {
         if (!calendar) return;
         const search = (document.getElementById('workerSearch').value || "").toLowerCase();
         
         const filtered = events.filter(e => {
             const matchesSearch = (e.pureName || "").toLowerCase().includes(search);
-            return matchesSearch;
+            const matchesCategory = (currentFilter === 'all' || e.rawType === currentFilter);
+            return matchesSearch && matchesCategory;
         });
 
-        // Convertimos a formato FullCalendar con 1 solo bloque largo
-        const calendarEvents = filtered.map(e => {
-            // FullCalendar requiere que la fecha de fin sea exclusiva (+1 día) para mostrar el bloque completo
-            let endDate = new Date((e.realEnd || e.start) + 'T00:00:00');
-            endDate.setDate(endDate.getDate() + 1);
-            
-            return {
-                id: e.id,
-                title: e.pureName + (e.distintivo ? ' ' + e.distintivo : ''),
-                start: e.start,
-                end: endDate.toISOString().split('T')[0],
-                className: [e.rawType],
-                extendedProps: { ...e }
-            };
+        let dailySegments = [];
+        filtered.forEach(e => {
+            let current = new Date(e.start + 'T00:00:00');
+            let last = new Date((e.realEnd || e.start) + 'T00:00:00');
+
+            while (current <= last) {
+                let dateStr = current.toISOString().split('T')[0];
+                dailySegments.push({
+                    id: e.id,
+                    title: e.pureName + (e.distintivo ? ' ' + e.distintivo : ''),
+                    start: dateStr,
+                    allDay: true,
+                    className: [e.rawType, 'event-segment'],
+                    extendedProps: { ...e }
+                });
+                current.setDate(current.getDate() + 1);
+            }
         });
 
         calendar.removeAllEvents();
-        calendar.addEventSource(calendarEvents);
+        calendar.addEventSource(dailySegments);
 
         const list = document.getElementById('workerList');
         list.innerHTML = '';
@@ -245,7 +241,6 @@
     function openEditModalById(id) {
         const original = events.find(e => e.id === id);
         if (!original) return;
-        
         forceCloseSidebar();
         document.getElementById('editId').value = original.id;
         document.getElementById('workerName').value = original.pureName || '';
@@ -254,7 +249,6 @@
         document.getElementById('endDate').value = original.realEnd || original.start;
         document.getElementById('comments').value = original.comment || '';
         if (original.distintivo) document.getElementById('vacDistintivo').value = original.distintivo;
-        
         document.getElementById('btnDelete').classList.remove('d-none');
         document.getElementById('modalTitle').innerText = "Editar Registro";
         handleTypeChange();
@@ -283,9 +277,7 @@
         const start = document.getElementById('startDate').value;
         const type = document.getElementById('regType').value;
         let endInput = document.getElementById('endDate').value || start;
-
         if (!worker || !start) return alert("Faltan datos.");
-
         const data = {
             pureName: worker,
             start: start,
@@ -294,10 +286,8 @@
             distintivo: (type === 'cat-vacaciones') ? document.getElementById('vacDistintivo').value : '',
             comment: document.getElementById('comments').value
         };
-
         if (id) db.child(id).update(data);
         else db.push(data);
-
         bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
     }
 
@@ -309,27 +299,11 @@
     }
 
     function exportToExcel() {
-        const data = events.map(e => ({
-            Trabajador: e.pureName,
-            Tipo: e.rawType,
-            Subtipo: e.distintivo || '',
-            Inicio: e.start,
-            Fin: e.realEnd,
-            Nota: e.comment
-        }));
+        const data = events.map(e => ({ Trabajador: e.pureName, Tipo: e.rawType, Inicio: e.start, Fin: e.realEnd, Nota: e.comment }));
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Asistencia");
-        XLSX.writeFile(wb, "Reporte_RRHH.xlsx");
-    }
-
-    function showKPIs() {
-        const stats = {
-            v: events.filter(e => e.rawType === 'cat-vacaciones').length,
-            l: events.filter(e => e.rawType === 'cat-licencia').length,
-            a: events.filter(e => e.rawType === 'cat-ausencia').length
-        };
-        alert(`KPI Actual:\n- Vacaciones/P: ${stats.v}\n- Licencias: ${stats.l}\n- Ausencias: ${stats.a}`);
+        XLSX.writeFile(wb, "Reporte_Asistencia.xlsx");
     }
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
