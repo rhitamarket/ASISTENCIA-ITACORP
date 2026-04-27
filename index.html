@@ -292,4 +292,69 @@
         const worker = document.getElementById('workerName').value;
         const start = document.getElementById('startDate').value;
         const type = document.getElementById('regType').value;
-        const hora = document.getElementById('reti
+        const hora = document.getElementById('retiroTime').value;
+        let endInput = (type === 'cat-retiro') ? start : (document.getElementById('endDate').value || start);
+        const dist = (type === 'cat-vacaciones') ? document.getElementById('vacDistintivo').value : '';
+
+        if (!worker || !start) return alert("Faltan datos");
+
+        let calendarEnd = new Date(endInput + 'T00:00:00');
+        calendarEnd.setDate(calendarEnd.getDate() + 1);
+        let finalCalendarStr = calendarEnd.toISOString().split('T')[0];
+
+        const data = {
+            title: worker + (dist ? ' ' + dist : '') + (hora ? ' ' + hora : ''),
+            start: start, 
+            end: finalCalendarStr, 
+            realEnd: endInput,     
+            pureName: worker,
+            rawType: type, 
+            distintivo: dist, 
+            retiroTime: hora,
+            comment: document.getElementById('comments').value, 
+            className: [type]
+        };
+
+        if (id) db.child(id).update(data);
+        else db.push(data);
+
+        bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+    }
+
+    function refreshAll() {
+        const search = document.getElementById('workerSearch').value.toLowerCase();
+        const filtered = events.filter(e => {
+            const matchesSearch = e.pureName.toLowerCase().includes(search);
+            const matchesFilter = (currentFilter === 'all' || e.rawType === currentFilter);
+            return matchesSearch && matchesFilter;
+        });
+
+        calendar.removeAllEvents();
+        calendar.addEventSource(filtered);
+
+        const list = document.getElementById('workerList');
+        list.innerHTML = '';
+        filtered.forEach(ev => {
+            list.innerHTML += `<div class="sidebar-item" onclick="openEditById('${ev.id}')">
+                <strong>${ev.pureName}</strong><br><small>${formatDateDisplay(ev.start)}</small></div>`;
+        });
+    }
+
+    function openEditById(id) {
+        const ev = calendar.getEventById(id);
+        if(ev) openEditModal(ev);
+    }
+
+    function deleteEvent() {
+        if(confirm("¿Eliminar?")) {
+            db.child(document.getElementById('editId').value).remove();
+            bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+        }
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('active');
+    }
+</script>
+</body>
+</html>
