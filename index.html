@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v8.3</title>
+    <title>Asistencia RRHH v8.4</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -79,11 +79,6 @@
         <input type="text" id="workerSearch" class="form-control form-control-sm mb-3" placeholder="Buscar trabajador..." onkeyup="refreshAll()">
         
         <div id="workerList" style="flex-grow: 1; overflow-y: auto;"></div>
-
-        <hr>
-        <div class="d-grid">
-            <button class="btn btn-danger btn-sm" onclick="exitToMain()">SALIR AL MENÚ</button>
-        </div>
     </div>
 
     <div id="calendar-container">
@@ -119,7 +114,7 @@
                         <label class="form-label">Subtipo</label>
                         <select id="vacDistintivo" class="form-select">
                             <option value="[V]">Vacaciones (V)</option>
-                            <option value="[P]">Permiso Con Goce (P)</option>
+                            <option value="[P]">Permiso Administrativo (P)</option>
                         </select>
                     </div>
 
@@ -170,7 +165,6 @@
     let events = [];
     let currentFilter = 'all';
 
-    // Función auxiliar para convertir yyyy-mm-dd a dd/mm/yyyy
     function formatDateDisplay(dateStr) {
         if (!dateStr) return "-";
         const parts = dateStr.split('-');
@@ -195,6 +189,18 @@
                     click: function() { toggleFullScreen(); }
                 }
             },
+            // FUNCIÓN PARA MOSTRAR INFORMACIÓN AL PASAR EL MOUSE
+            eventDidMount: function(info) {
+                const p = info.event.extendedProps;
+                const tipoMap = {
+                    'cat-vacaciones': 'Vacaciones/Permiso',
+                    'cat-licencia': 'Licencia Médica',
+                    'cat-ausencia': 'Ausencia',
+                    'cat-retiro': 'Retiro Anticipado'
+                };
+                const tooltip = `Trabajador: ${p.pureName}\nTipo: ${tipoMap[p.rawType]}\nObservación: ${p.comment || 'Sin notas'}`;
+                info.el.setAttribute('title', tooltip);
+            },
             eventClick: (info) => openEditModal(info.event)
         });
         calendar.render();
@@ -214,8 +220,8 @@
             "Trabajador": ev.pureName,
             "Tipo": ev.rawType.replace('cat-', '').toUpperCase(),
             "Subtipo": ev.distintivo || '-',
-            "Inicio": formatDateDisplay(ev.start),     // CAMBIO A DD/MM/YYYY
-            "Fin Real": formatDateDisplay(ev.realEnd), // CAMBIO A DD/MM/YYYY
+            "Inicio": formatDateDisplay(ev.start),
+            "Fin Real": formatDateDisplay(ev.realEnd),
             "Hora Retiro": ev.retiroTime || '-',
             "Observaciones": ev.comment || ''
         }));
@@ -238,12 +244,6 @@
             elem.requestFullscreen().catch(err => { console.log(err.message); });
         } else {
             document.exitFullscreen();
-        }
-    }
-
-    function exitToMain() {
-        if(confirm("¿Deseas salir del sistema?")) {
-            window.location.href = "https://tu-pagina-principal.com";
         }
     }
 
@@ -292,70 +292,4 @@
         const worker = document.getElementById('workerName').value;
         const start = document.getElementById('startDate').value;
         const type = document.getElementById('regType').value;
-        const hora = document.getElementById('retiroTime').value;
-        let endInput = (type === 'cat-retiro') ? start : (document.getElementById('endDate').value || start);
-        const dist = (type === 'cat-vacaciones') ? document.getElementById('vacDistintivo').value : '';
-
-        if (!worker || !start) return alert("Faltan datos");
-
-        let calendarEnd = new Date(endInput + 'T00:00:00');
-        calendarEnd.setDate(calendarEnd.getDate() + 1);
-        let finalCalendarStr = calendarEnd.toISOString().split('T')[0];
-
-        const data = {
-            title: worker + (dist ? ' ' + dist : '') + (hora ? ' ' + hora : ''),
-            start: start, 
-            end: finalCalendarStr, 
-            realEnd: endInput,     
-            pureName: worker,
-            rawType: type, 
-            distintivo: dist, 
-            retiroTime: hora,
-            comment: document.getElementById('comments').value, 
-            className: [type]
-        };
-
-        if (id) db.child(id).update(data);
-        else db.push(data);
-
-        bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
-    }
-
-    function refreshAll() {
-        const search = document.getElementById('workerSearch').value.toLowerCase();
-        const filtered = events.filter(e => {
-            const matchesSearch = e.pureName.toLowerCase().includes(search);
-            const matchesFilter = (currentFilter === 'all' || e.rawType === currentFilter);
-            return matchesSearch && matchesFilter;
-        });
-
-        calendar.removeAllEvents();
-        calendar.addEventSource(filtered);
-
-        const list = document.getElementById('workerList');
-        list.innerHTML = '';
-        filtered.forEach(ev => {
-            // MOSTRAR FECHA FORMATEADA EN EL SIDEBAR
-            list.innerHTML += `<div class="sidebar-item" onclick="openEditById('${ev.id}')">
-                <strong>${ev.pureName}</strong><br><small>${formatDateDisplay(ev.start)}</small></div>`;
-        });
-    }
-
-    function openEditById(id) {
-        const ev = calendar.getEventById(id);
-        if(ev) openEditModal(ev);
-    }
-
-    function deleteEvent() {
-        if(confirm("¿Eliminar?")) {
-            db.child(document.getElementById('editId').value).remove();
-            bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
-        }
-    }
-
-    function toggleSidebar() {
-        document.getElementById('sidebar').classList.toggle('active');
-    }
-</script>
-</body>
-</html>
+        const hora = document.getElementById('reti
