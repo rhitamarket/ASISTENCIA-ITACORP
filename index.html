@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v8.7</title>
+    <title>Asistencia RRHH v8.8 - Multi-Name Flow</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -15,10 +15,8 @@
     <style>
         :root { --verde: #28a745; --azul: #007bff; --rojo: #dc3545; --negro: #343a40; }
         body { font-family: sans-serif; background: #fff; height: 100vh; margin: 0; overflow: hidden; display: flex; flex-direction: column; }
-        
-        .main-wrapper { display: flex; flex: 1; height: calc(100vh - 0px); width: 100vw; position: relative; overflow: hidden; }
+        .main-wrapper { display: flex; flex: 1; height: 100vh; width: 100vw; position: relative; overflow: hidden; }
 
-        /* Sidebar mejorado para móvil */
         #sidebar { 
             width: 320px; background: #f8f9fa; border-right: 1px solid #ddd; 
             display: flex; flex-direction: column; overflow-y: auto; padding: 15px; 
@@ -33,7 +31,6 @@
             #sidebar.active { transform: translateX(0); box-shadow: 5px 0 15px rgba(0,0,0,0.2); }
         }
 
-        /* Botón Flotante para Móvil */
         #btnToggleMenu { 
             position: fixed; bottom: 20px; left: 20px; z-index: 3000; 
             border-radius: 50%; width: 56px; height: 56px; font-size: 20px; 
@@ -42,12 +39,20 @@
         }
         @media (max-width: 768px) { #btnToggleMenu { display: flex; } }
 
-        /* Estilos de Registros */
-        .sidebar-item { border-left: 5px solid #ccc; padding: 10px; background: white; margin-bottom: 8px; border-radius: 4px; cursor: pointer; border: 1px solid #ddd; font-size: 13px; }
-        .sidebar-item:hover { background: #f0f0f0; }
-        .fc-event { cursor: pointer; border: none !important; padding: 2px; }
+        /* --- ESTILO DE CONTINUIDAD --- */
+        .fc-event { 
+            cursor: pointer; 
+            border: none !important; 
+            padding: 2px 5px !important; 
+            border-radius: 0px !important; /* Cuadrados para que parezcan una sola línea */
+            margin-bottom: 1px !important;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+        /* Redondear solo los extremos reales de la semana o del evento si se desea, 
+           pero para repetición de nombre es mejor mantenerlos rectos */
         
-        /* Colores */
+        .sidebar-item { border-left: 5px solid #ccc; padding: 10px; background: white; margin-bottom: 8px; border-radius: 4px; cursor: pointer; border: 1px solid #ddd; font-size: 13px; }
         .cat-vacaciones { background-color: var(--verde) !important; }
         .cat-licencia { background-color: var(--azul) !important; }
         .cat-ausencia { background-color: var(--rojo) !important; }
@@ -61,19 +66,21 @@
 <div class="main-wrapper">
     <div id="sidebar">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="m-0">Panel de Control</h5>
+            <h5 class="m-0">Control Asistencia</h5>
             <button class="btn-close d-md-none" onclick="toggleSidebar()"></button>
         </div>
         
         <div class="d-grid gap-2 mb-3">
             <button class="btn btn-success" onclick="openCreateModal()">+ NUEVO REGISTRO</button>
-            <button class="btn btn-outline-dark btn-sm" onclick="exportToExcel()">Excel</button>
-            <button class="btn btn-outline-primary btn-sm" onclick="showKPIs()">Reporte KPI</button>
+            <div class="btn-group">
+                <button class="btn btn-outline-dark btn-sm" onclick="exportToExcel()">Excel</button>
+                <button class="btn btn-outline-primary btn-sm" onclick="showKPIs()">KPI</button>
+            </div>
         </div>
 
         <hr>
         <div class="mb-3">
-            <input type="text" id="workerSearch" class="form-control" placeholder="🔍 Buscar trabajador..." onkeyup="refreshAll()">
+            <input type="text" id="workerSearch" class="form-control form-control-sm" placeholder="🔍 Buscar..." onkeyup="refreshAll()">
         </div>
 
         <div class="d-flex flex-wrap gap-1 mb-3">
@@ -91,7 +98,7 @@
     </div>
 </div>
 
-<div class="modal fade" id="eventModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="eventModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
@@ -139,14 +146,13 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-danger d-none" id="btnDelete" onclick="deleteEvent()">Eliminar</button>
-                <button type="button" class="btn btn-primary" onclick="saveEvent()">Guardar Datos</button>
+                <button type="button" class="btn btn-primary" onclick="saveEvent()">Guardar</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // 1. Configuración de Seguridad
     const firebaseConfig = {
         apiKey: "AIzaSyAQeXVFJJ1e4HWVzSY7YcerP9_XXEKnOJo",
         authDomain: "calendario-asistencia.firebaseapp.com",
@@ -160,73 +166,100 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database().ref('asistencias');
     let calendar;
-    let events = [];
+    let events = []; // Registros crudos (1 por permiso)
     let currentFilter = 'all';
 
-    // 2. Inicialización Robusta
     document.addEventListener('DOMContentLoaded', function() {
-        const calendarEl = document.getElementById('calendar');
-        calendar = new FullCalendar.Calendar(calendarEl, {
+        calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
             initialView: window.innerWidth < 768 ? 'listMonth' : 'dayGridMonth',
             locale: 'es',
             firstDay: 1,
             headerToolbar: { 
-                left: 'prev,next', 
+                left: 'prev,next today', 
                 center: 'title', 
-                right: 'today listMonth,dayGridMonth' 
+                right: 'listMonth,dayGridMonth' 
             },
-            eventClick: (info) => openEditModal(info.event),
+            eventClick: (info) => openEditModalById(info.event.id),
             eventDidMount: function(info) {
                 const p = info.event.extendedProps;
-                info.el.setAttribute('title', `Nota: ${p.comment || 'Sin notas'}`);
+                info.el.setAttribute('title', `${p.pureName}: ${p.comment || 'Sin notas'}`);
             }
         });
         calendar.render();
 
-        // Carga de Datos con Protección
         db.on('value', (snapshot) => {
-            try {
-                const data = snapshot.val();
-                events = [];
-                if (data) {
-                    Object.keys(data).forEach(key => {
-                        const item = data[key];
-                        // Blindaje: Si falta el nombre, asigna "Sin Nombre" para no romper el código
-                        events.push({ 
-                            id: key, 
-                            ...item,
-                            pureName: item.pureName || "Sin Nombre",
-                            rawType: item.rawType || "cat-ausencia"
-                        });
-                    });
-                }
-                refreshAll();
-            } catch (err) {
-                console.error("Error cargando datos:", err);
+            const data = snapshot.val();
+            events = [];
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    events.push({ id: key, ...data[key] });
+                });
             }
+            refreshAll();
         });
     });
 
-    // 3. Funciones de Interfaz
     function refreshAll() {
         if (!calendar) return;
         const search = (document.getElementById('workerSearch').value || "").toLowerCase();
         
         const filtered = events.filter(e => {
-            const matchesSearch = e.pureName.toLowerCase().includes(search);
+            const matchesSearch = (e.pureName || "").toLowerCase().includes(search);
             const matchesFilter = (currentFilter === 'all' || e.rawType === currentFilter);
             return matchesSearch && matchesFilter;
         });
 
-        calendar.removeAllEvents();
-        calendar.addEventSource(filtered);
+        // --- LÓGICA DE REPETICIÓN DE NOMBRE ---
+        let calendarVisualEvents = [];
+        filtered.forEach(e => {
+            let current = new Date(e.start + 'T00:00:00');
+            let last = new Date((e.realEnd || e.start) + 'T00:00:00');
 
+            // Creamos una entrada por cada día para que el nombre se repita
+            while (current <= last) {
+                let dateStr = current.toISOString().split('T')[0];
+                calendarVisualEvents.push({
+                    id: e.id, // Mismo ID para que al hacer clic abra el mismo registro
+                    title: e.pureName + (e.distintivo ? ' ' + e.distintivo : ''),
+                    start: dateStr,
+                    allDay: true,
+                    className: [e.rawType],
+                    extendedProps: { ...e }
+                });
+                current.setDate(current.getDate() + 1);
+            }
+        });
+
+        calendar.removeAllEvents();
+        calendar.addEventSource(calendarVisualEvents);
+
+        // Lista lateral (aquí sí mostramos 1 solo registro por persona)
         const list = document.getElementById('workerList');
         list.innerHTML = '';
-        filtered.slice(0, 50).forEach(ev => { // Límite de 50 para no colapsar móvil
-            list.innerHTML += `<div class="sidebar-item" onclick="openEditById('${ev.id}')">
-                <strong>${ev.pureName}</strong><br><small>${ev.start}</small></div>`;
+        filtered.forEach(ev => {
+            list.innerHTML += `<div class="sidebar-item" onclick="openEditModalById('${ev.id}')">
+                <strong>${ev.pureName}</strong><br><small>${ev.start} al ${ev.realEnd || ev.start}</small></div>`;
         });
+    }
+
+    // Buscar el evento original en el array "events" para editarlo
+    function openEditModalById(id) {
+        const original = events.find(e => e.id === id);
+        if (!original) return;
+        
+        forceCloseSidebar();
+        document.getElementById('editId').value = original.id;
+        document.getElementById('workerName').value = original.pureName || '';
+        document.getElementById('regType').value = original.rawType || 'cat-vacaciones';
+        document.getElementById('startDate').value = original.start;
+        document.getElementById('endDate').value = original.realEnd || original.start;
+        document.getElementById('comments').value = original.comment || '';
+        if (original.distintivo) document.getElementById('vacDistintivo').value = original.distintivo;
+        
+        document.getElementById('btnDelete').classList.remove('d-none');
+        document.getElementById('modalTitle').innerText = "Editar Registro";
+        handleTypeChange();
+        new bootstrap.Modal(document.getElementById('eventModal')).show();
     }
 
     function handleTypeChange() {
@@ -245,27 +278,6 @@
         new bootstrap.Modal(document.getElementById('eventModal')).show();
     }
 
-    function openEditModal(event) {
-        forceCloseSidebar();
-        const p = event.extendedProps;
-        document.getElementById('editId').value = event.id;
-        document.getElementById('workerName').value = p.pureName || '';
-        document.getElementById('regType').value = p.rawType || 'cat-vacaciones';
-        document.getElementById('startDate').value = event.startStr;
-        document.getElementById('endDate').value = p.realEnd || event.startStr;
-        document.getElementById('comments').value = p.comment || '';
-        document.getElementById('btnDelete').classList.remove('d-none');
-        document.getElementById('modalTitle').innerText = "Editar Registro";
-        handleTypeChange();
-        new bootstrap.Modal(document.getElementById('eventModal')).show();
-    }
-
-    function openEditById(id) {
-        const ev = calendar.getEventById(id);
-        if(ev) openEditModal(ev);
-    }
-
-    // 4. Lógica de Negocio
     function saveEvent() {
         const id = document.getElementById('editId').value;
         const worker = document.getElementById('workerName').value;
@@ -273,22 +285,15 @@
         const type = document.getElementById('regType').value;
         let endInput = document.getElementById('endDate').value || start;
 
-        if (!worker || !start) return alert("Faltan campos obligatorios.");
-
-        // Ajuste de fecha para FullCalendar
-        let d = new Date(endInput + 'T00:00:00');
-        d.setDate(d.getDate() + 1);
-        let calendarEnd = d.toISOString().split('T')[0];
+        if (!worker || !start) return alert("Faltan datos.");
 
         const data = {
-            title: worker + (type === 'cat-vacaciones' ? ' ' + document.getElementById('vacDistintivo').value : ''),
-            start: start,
-            end: calendarEnd,
-            realEnd: endInput,
             pureName: worker,
+            start: start,
+            realEnd: (type === 'cat-retiro') ? start : endInput,
             rawType: type,
-            comment: document.getElementById('comments').value,
-            className: [type]
+            distintivo: (type === 'cat-vacaciones') ? document.getElementById('vacDistintivo').value : '',
+            comment: document.getElementById('comments').value
         };
 
         if (id) db.child(id).update(data);
@@ -298,47 +303,36 @@
     }
 
     function deleteEvent() {
-        if(confirm("¿Eliminar este registro permanentemente?")) {
+        if(confirm("¿Eliminar registro?")) {
             db.child(document.getElementById('editId').value).remove();
             bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
         }
     }
 
-    // 5. Herramientas y Reportes
     function exportToExcel() {
-        try {
-            const data = events.map(e => ({
-                Trabajador: e.pureName,
-                Tipo: e.rawType,
-                Inicio: e.start,
-                Fin: e.realEnd,
-                Nota: e.comment
-            }));
-            const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Reporte");
-            XLSX.writeFile(wb, "Asistencia_RRHH.xlsx");
-        } catch (e) { alert("Error al exportar."); }
+        const data = events.map(e => ({
+            Trabajador: e.pureName,
+            Tipo: e.rawType,
+            Subtipo: e.distintivo || '',
+            Inicio: e.start,
+            Fin: e.realEnd,
+            Nota: e.comment
+        }));
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Asistencia");
+        XLSX.writeFile(wb, "Reporte_RRHH.xlsx");
     }
 
     function showKPIs() {
-        if (events.length === 0) return alert("Sin datos.");
         const stats = {
             v: events.filter(e => e.rawType === 'cat-vacaciones').length,
             l: events.filter(e => e.rawType === 'cat-licencia').length,
             a: events.filter(e => e.rawType === 'cat-ausencia').length
         };
-        const win = window.open("", "_blank", "width=500,height=600");
-        win.document.write(`<html><head><title>KPI</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head><body class="p-4">
-            <h4>Resumen KPI</h4><hr>
-            <p>Vacaciones/Permisos: <b>${stats.v}</b></p>
-            <p>Licencias Médicas: <b>${stats.l}</b></p>
-            <p>Ausencias: <b>${stats.a}</b></p>
-            <hr><button class="btn btn-secondary w-100" onclick="window.close()">Cerrar</button>
-        </body></html>`);
+        alert(`KPI Actual:\n- Vacaciones/P: ${stats.v}\n- Licencias: ${stats.l}\n- Ausencias: ${stats.a}`);
     }
 
-    // Navegación Móvil
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
     function forceCloseSidebar() { if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('active'); }
     function setFilter(f) { currentFilter = f; refreshAll(); }
