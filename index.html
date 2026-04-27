@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v8.5</title>
+    <title>Asistencia RRHH v8.6 - KPI Stable</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -17,6 +17,7 @@
         body { font-family: sans-serif; background: #fff; height: 100vh; margin: 0; overflow: hidden; }
         .main-wrapper { display: flex; height: 100vh; width: 100vw; position: relative; }
 
+        /* Sidebar */
         #sidebar { 
             width: 320px; background: #f8f9fa; border-right: 1px solid #ddd; 
             display: flex; flex-direction: column;
@@ -38,9 +39,11 @@
         }
         @media (max-width: 768px) { #btnToggleMenu { display: flex; align-items: center; justify-content: center; } }
 
+        /* Elementos UI */
         .filter-btn { font-size: 0.72rem; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; padding: 4px; }
         .sidebar-item { border-left: 5px solid #ccc; padding: 8px; background: white; margin-bottom: 5px; border-radius: 4px; cursor: pointer; font-size: 0.85em; border: 1px solid #eee; }
         
+        /* Colores Categorías */
         .fc-event { cursor: pointer; border: none !important; }
         .cat-vacaciones { background-color: var(--verde) !important; }
         .cat-licencia { background-color: var(--azul) !important; }
@@ -110,6 +113,7 @@
                             <option value="cat-retiro">Retiro Anticipado</option>
                         </select>
                     </div>
+
                     <div id="divDistintivo" class="mb-3" style="display:none;">
                         <label class="form-label">Subtipo</label>
                         <select id="vacDistintivo" class="form-select">
@@ -117,10 +121,12 @@
                             <option value="[P]">Permiso Administrativo (P)</option>
                         </select>
                     </div>
+
                     <div id="divHoraRetiro" class="mb-3" style="display:none;">
                         <label class="form-label">Hora de Retiro</label>
                         <input type="time" id="retiroTime" class="form-control">
                     </div>
+
                     <div class="row">
                         <div class="col-6 mb-3">
                             <label class="form-label" id="labelFechaInicio">Fecha Inicio</label>
@@ -131,6 +137,7 @@
                             <input type="date" id="endDate" class="form-control">
                         </div>
                     </div>
+                    
                     <div class="mb-3">
                         <label class="form-label">Observaciones</label>
                         <textarea id="comments" class="form-control" rows="2"></textarea>
@@ -146,6 +153,7 @@
 </div>
 
 <script>
+    // Configuración Firebase
     const firebaseConfig = {
         apiKey: "AIzaSyAQeXVFJJ1e4HWVzSY7YcerP9_XXEKnOJo",
         authDomain: "calendario-asistencia.firebaseapp.com",
@@ -162,6 +170,7 @@
     let events = [];
     let currentFilter = 'all';
 
+    // Función auxiliar de formato de fecha
     function formatDateDisplay(dateStr) {
         if (!dateStr) return "-";
         const parts = dateStr.split('-');
@@ -170,6 +179,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar Calendario
         calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
             initialView: 'dayGridMonth',
             locale: 'es',
@@ -201,6 +211,7 @@
         });
         calendar.render();
 
+        // Escuchar cambios en Firebase
         db.on('value', (snapshot) => {
             const data = snapshot.val();
             events = [];
@@ -209,7 +220,7 @@
         });
     });
 
-    // --- FUNCIÓN KPI Y GRÁFICO ---
+    // Función para mostrar KPIs en ventana nueva
     function showKPIs() {
         if (events.length === 0) return alert("No hay datos para analizar");
 
@@ -222,52 +233,57 @@
 
         const total = events.length;
 
-        const reportWindow = window.open("", "ReporteKPI", "width=600,height=700");
+        const reportWindow = window.open("", "ReporteKPI", "width=600,height=750");
         reportWindow.document.write(`
             <html>
             <head>
                 <title>Reporte de Asistencias KPI</title>
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
                 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-                <style>body { padding: 30px; font-family: sans-serif; }</style>
+                <style>body { padding: 30px; font-family: sans-serif; background: #f4f7f6; }</style>
             </head>
             <body>
-                <h4 class="mb-4 text-center">Dashboard de Asistencia</h4>
+                <h4 class="mb-4 text-center">Dashboard de Análisis de Personal</h4>
                 <div class="row text-center mb-4">
-                    <div class="col-6 mb-2">
-                        <div class="card p-2"><strong>Total Eventos</strong><br><h2>${total}</h2></div>
+                    <div class="col-6">
+                        <div class="card shadow-sm p-3"><strong>Total Registros</strong><br><h2 class="text-primary">${total}</h2></div>
                     </div>
-                    <div class="col-6 mb-2">
-                        <div class="card p-2 bg-danger text-white"><strong>Tasa Ausencia</strong><br><h2>${((stats.ausencias / total) * 100).toFixed(1)}%</h2></div>
+                    <div class="col-6">
+                        <div class="card shadow-sm p-3"><strong>Tasa Ausentismo</strong><br><h2 class="text-danger">${((stats.ausencias / total) * 100).toFixed(1)}%</h2></div>
                     </div>
                 </div>
                 
-                <div style="max-width: 400px; margin: auto;">
+                <div style="max-width: 350px; margin: auto;" class="bg-white p-3 rounded shadow-sm">
                     <canvas id="kpiChart"></canvas>
                 </div>
 
-                <table class="table table-sm mt-4">
-                    <thead><tr><th>Categoría</th><th>Cantidad</th><th>%</th></tr></thead>
+                <table class="table table-bordered table-striped mt-4 bg-white shadow-sm">
+                    <thead class="table-dark"><tr><th>Motivo</th><th>Cant.</th><th>%</th></tr></thead>
                     <tbody>
-                        <tr><td>Vacaciones/Permiso</td><td>${stats.vacaciones}</td><td>${((stats.vacaciones/total)*100).toFixed(1)}%</td></tr>
+                        <tr><td>Vacaciones/Permisos</td><td>${stats.vacaciones}</td><td>${((stats.vacaciones/total)*100).toFixed(1)}%</td></tr>
                         <tr><td>Licencias Médicas</td><td>${stats.licencias}</td><td>${((stats.licencias/total)*100).toFixed(1)}%</td></tr>
-                        <tr><td>Ausencias</td><td>${stats.ausencias}</td><td>${((stats.ausencias/total)*100).toFixed(1)}%</td></tr>
+                        <tr><td>Ausencias Injust.</td><td>${stats.ausencias}</td><td>${((stats.ausencias/total)*100).toFixed(1)}%</td></tr>
                         <tr><td>Retiros Anticipados</td><td>${stats.retiros}</td><td>${((stats.retiros/total)*100).toFixed(1)}%</td></tr>
                     </tbody>
                 </table>
+                <p class="text-muted small text-center mt-3">Generado automáticamente por el Sistema de Asistencia</p>
 
                 <script>
                     const ctx = document.getElementById('kpiChart').getContext('2d');
                     new Chart(ctx, {
                         type: 'pie',
                         data: {
-                            labels: ['V/P', 'Licencia', 'Ausencia', 'Retiro'],
+                            labels: ['V/P', 'Licencias', 'Ausencias', 'Retiros'],
                             datasets: [{
                                 data: [${stats.vacaciones}, ${stats.licencias}, ${stats.ausencias}, ${stats.retiros}],
-                                backgroundColor: ['#28a745', '#007bff', '#dc3545', '#343a40']
+                                backgroundColor: ['#28a745', '#007bff', '#dc3545', '#343a40'],
+                                borderWeight: 1
                             }]
                         },
-                        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+                        options: { 
+                            responsive: true, 
+                            plugins: { legend: { position: 'bottom' } } 
+                        }
                     });
                 </script>
             </body>
@@ -275,7 +291,7 @@
         `);
     }
 
-    // --- FUNCIONES RESTANTES (Mantenidas sin cambios) ---
+    // Exportación a Excel
     function exportToExcel() {
         if (events.length === 0) return alert("No hay datos para exportar");
         const dataToExport = events.map(ev => ({
@@ -291,10 +307,6 @@
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Asistencias");
         XLSX.writeFile(workbook, "Reporte_Asistencias.xlsx");
-    }
-
-    function forceCloseSidebar() {
-        if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('active');
     }
 
     function toggleFullScreen() {
@@ -351,18 +363,29 @@
         const hora = document.getElementById('retiroTime').value;
         let endInput = (type === 'cat-retiro') ? start : (document.getElementById('endDate').value || start);
         const dist = (type === 'cat-vacaciones') ? document.getElementById('vacDistintivo').value : '';
-        if (!worker || !start) return alert("Faltan datos");
+
+        if (!worker || !start) return alert("Por favor complete Nombre y Fecha");
+
         let calendarEnd = new Date(endInput + 'T00:00:00');
         calendarEnd.setDate(calendarEnd.getDate() + 1);
         let finalCalendarStr = calendarEnd.toISOString().split('T')[0];
+
         const data = {
             title: worker + (dist ? ' ' + dist : '') + (hora ? ' ' + hora : ''),
-            start: start, end: finalCalendarStr, realEnd: endInput,     
-            pureName: worker, rawType: type, distintivo: dist, 
-            retiroTime: hora, comment: document.getElementById('comments').value, className: [type]
+            start: start, 
+            end: finalCalendarStr, 
+            realEnd: endInput,     
+            pureName: worker,
+            rawType: type, 
+            distintivo: dist, 
+            retiroTime: hora,
+            comment: document.getElementById('comments').value, 
+            className: [type]
         };
+
         if (id) db.child(id).update(data);
         else db.push(data);
+
         bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
     }
 
@@ -373,8 +396,12 @@
             const matchesFilter = (currentFilter === 'all' || e.rawType === currentFilter);
             return matchesSearch && matchesFilter;
         });
-        calendar.removeAllEvents();
-        calendar.addEventSource(filtered);
+
+        if(calendar) {
+            calendar.removeAllEvents();
+            calendar.addEventSource(filtered);
+        }
+
         const list = document.getElementById('workerList');
         list.innerHTML = '';
         filtered.forEach(ev => {
@@ -389,7 +416,7 @@
     }
 
     function deleteEvent() {
-        if(confirm("¿Eliminar?")) {
+        if(confirm("¿Estás seguro de eliminar este registro?")) {
             db.child(document.getElementById('editId').value).remove();
             bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
         }
@@ -397,6 +424,10 @@
 
     function toggleSidebar() {
         document.getElementById('sidebar').classList.toggle('active');
+    }
+
+    function forceCloseSidebar() {
+        if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('active');
     }
 </script>
 </body>
