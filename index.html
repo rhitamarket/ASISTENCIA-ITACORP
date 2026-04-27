@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v8.1</title>
+    <title>Asistencia RRHH v8.2</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -199,29 +199,22 @@
         });
     });
 
-    // FUNCIÓN DE EXPORTACIÓN A EXCEL CORREGIDA
     function exportToExcel() {
-        if (events.length === 0) {
-            return alert("No hay datos para exportar");
-        }
+        if (events.length === 0) return alert("No hay datos para exportar");
 
-        // Preparamos los datos para que el Excel sea legible
         const dataToExport = events.map(ev => ({
             "Trabajador": ev.pureName,
             "Tipo": ev.rawType.replace('cat-', '').toUpperCase(),
             "Subtipo": ev.distintivo || '-',
             "Inicio": ev.start,
-            "Fin": ev.realEnd || ev.start,
+            "Fin Real": ev.realEnd || ev.start,
             "Hora Retiro": ev.retiroTime || '-',
             "Observaciones": ev.comment || ''
         }));
 
-        // Creamos la hoja de trabajo
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Asistencias");
-
-        // Generamos el archivo y disparamos la descarga
         XLSX.writeFile(workbook, "Reporte_Asistencias.xlsx");
     }
 
@@ -292,16 +285,27 @@
         const start = document.getElementById('startDate').value;
         const type = document.getElementById('regType').value;
         const hora = document.getElementById('retiroTime').value;
-        let end = (type === 'cat-retiro') ? start : (document.getElementById('endDate').value || start);
+        let endInput = (type === 'cat-retiro') ? start : (document.getElementById('endDate').value || start);
         const dist = (type === 'cat-vacaciones') ? document.getElementById('vacDistintivo').value : '';
 
         if (!worker || !start) return alert("Faltan datos");
 
+        // CORRECCIÓN DE FECHA FINAL PARA EL CALENDARIO (Sumar 1 día para que sea inclusivo)
+        let calendarEnd = new Date(endInput + 'T00:00:00');
+        calendarEnd.setDate(calendarEnd.getDate() + 1);
+        let finalCalendarStr = calendarEnd.toISOString().split('T')[0];
+
         const data = {
             title: worker + (dist ? ' ' + dist : '') + (hora ? ' ' + hora : ''),
-            start: start, end: end, realEnd: end, pureName: worker,
-            rawType: type, distintivo: dist, retiroTime: hora,
-            comment: document.getElementById('comments').value, className: [type]
+            start: start, 
+            end: finalCalendarStr, // Para el calendario
+            realEnd: endInput,     // Para el formulario y Excel
+            pureName: worker,
+            rawType: type, 
+            distintivo: dist, 
+            retiroTime: hora,
+            comment: document.getElementById('comments').value, 
+            className: [type]
         };
 
         if (id) db.child(id).update(data);
