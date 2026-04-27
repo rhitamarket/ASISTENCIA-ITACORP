@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v8.6 - KPI Stable</title>
+    <title>Asistencia RRHH v8.7</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -14,43 +14,44 @@
     
     <style>
         :root { --verde: #28a745; --azul: #007bff; --rojo: #dc3545; --negro: #343a40; }
-        body { font-family: sans-serif; background: #fff; height: 100vh; margin: 0; overflow: hidden; }
-        .main-wrapper { display: flex; height: 100vh; width: 100vw; position: relative; }
+        body { font-family: sans-serif; background: #fff; height: 100vh; margin: 0; overflow: hidden; display: flex; flex-direction: column; }
+        
+        .main-wrapper { display: flex; flex: 1; height: calc(100vh - 0px); width: 100vw; position: relative; overflow: hidden; }
 
-        /* Sidebar */
+        /* Sidebar mejorado para móvil */
         #sidebar { 
             width: 320px; background: #f8f9fa; border-right: 1px solid #ddd; 
-            display: flex; flex-direction: column;
-            overflow-y: auto; padding: 15px; flex-shrink: 0; z-index: 2000; 
-            transition: transform 0.3s ease; 
+            display: flex; flex-direction: column; overflow-y: auto; padding: 15px; 
+            flex-shrink: 0; z-index: 2000; transition: all 0.3s ease; 
         }
 
-        #calendar-container { flex-grow: 1; height: 100vh; position: relative; padding: 0; background: white; }
+        #calendar-container { flex-grow: 1; position: relative; background: white; overflow: hidden; }
+        #calendar { height: 100%; }
 
         @media (max-width: 768px) {
-            #sidebar { position: absolute; left: 0; top: 0; height: 100%; transform: translateX(-100%); width: 85%; max-width: 300px; }
-            #sidebar.active { transform: translateX(0); box-shadow: 10px 0 20px rgba(0,0,0,0.3); }
+            #sidebar { position: absolute; left: 0; top: 0; height: 100%; transform: translateX(-100%); width: 280px; }
+            #sidebar.active { transform: translateX(0); box-shadow: 5px 0 15px rgba(0,0,0,0.2); }
         }
 
+        /* Botón Flotante para Móvil */
         #btnToggleMenu { 
-            position: fixed; bottom: 20px; right: 20px; z-index: 3000; 
-            border-radius: 50%; width: 60px; height: 60px; font-size: 24px; 
-            display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            position: fixed; bottom: 20px; left: 20px; z-index: 3000; 
+            border-radius: 50%; width: 56px; height: 56px; font-size: 20px; 
+            display: none; align-items: center; justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
-        @media (max-width: 768px) { #btnToggleMenu { display: flex; align-items: center; justify-content: center; } }
+        @media (max-width: 768px) { #btnToggleMenu { display: flex; } }
 
-        /* Elementos UI */
-        .filter-btn { font-size: 0.72rem; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; padding: 4px; }
-        .sidebar-item { border-left: 5px solid #ccc; padding: 8px; background: white; margin-bottom: 5px; border-radius: 4px; cursor: pointer; font-size: 0.85em; border: 1px solid #eee; }
+        /* Estilos de Registros */
+        .sidebar-item { border-left: 5px solid #ccc; padding: 10px; background: white; margin-bottom: 8px; border-radius: 4px; cursor: pointer; border: 1px solid #ddd; font-size: 13px; }
+        .sidebar-item:hover { background: #f0f0f0; }
+        .fc-event { cursor: pointer; border: none !important; padding: 2px; }
         
-        /* Colores Categorías */
-        .fc-event { cursor: pointer; border: none !important; }
+        /* Colores */
         .cat-vacaciones { background-color: var(--verde) !important; }
         .cat-licencia { background-color: var(--azul) !important; }
         .cat-ausencia { background-color: var(--rojo) !important; }
         .cat-retiro { background-color: var(--negro) !important; }
-
-        #calendar-container:fullscreen { background: white; padding: 10px; }
     </style>
 </head>
 <body>
@@ -60,29 +61,29 @@
 <div class="main-wrapper">
     <div id="sidebar">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="m-0">Panel Control</h5>
+            <h5 class="m-0">Panel de Control</h5>
             <button class="btn-close d-md-none" onclick="toggleSidebar()"></button>
         </div>
         
         <div class="d-grid gap-2 mb-3">
             <button class="btn btn-success" onclick="openCreateModal()">+ NUEVO REGISTRO</button>
-            <button class="btn btn-outline-dark btn-sm" onclick="exportToExcel()">Exportar Excel</button>
-            <button class="btn btn-outline-primary btn-sm" onclick="showKPIs()">Ver Reporte KPI</button>
+            <button class="btn btn-outline-dark btn-sm" onclick="exportToExcel()">Excel</button>
+            <button class="btn btn-outline-primary btn-sm" onclick="showKPIs()">Reporte KPI</button>
         </div>
 
         <hr>
-        <h6>Filtrar por Estado:</h6>
-        <div class="d-flex flex-wrap gap-1 mb-3">
-            <button class="btn btn-outline-secondary btn-sm flex-fill filter-btn" onclick="setFilter('all')">Todos</button>
-            <button class="btn btn-success btn-sm flex-fill filter-btn" onclick="setFilter('cat-vacaciones')">V/P</button>
-            <button class="btn btn-primary btn-sm flex-fill filter-btn" onclick="setFilter('cat-licencia')">Lic.</button>
-            <button class="btn btn-danger btn-sm flex-fill filter-btn" onclick="setFilter('cat-ausencia')">Aus.</button>
-            <button class="btn btn-dark btn-sm flex-fill filter-btn" onclick="setFilter('cat-retiro')">Ret.</button>
+        <div class="mb-3">
+            <input type="text" id="workerSearch" class="form-control" placeholder="🔍 Buscar trabajador..." onkeyup="refreshAll()">
         </div>
 
-        <input type="text" id="workerSearch" class="form-control form-control-sm mb-3" placeholder="Buscar trabajador..." onkeyup="refreshAll()">
+        <div class="d-flex flex-wrap gap-1 mb-3">
+            <button class="btn btn-light btn-sm border flex-fill" onclick="setFilter('all')">Todos</button>
+            <button class="btn btn-success btn-sm flex-fill" onclick="setFilter('cat-vacaciones')">V/P</button>
+            <button class="btn btn-primary btn-sm flex-fill" onclick="setFilter('cat-licencia')">Lic</button>
+            <button class="btn btn-danger btn-sm flex-fill" onclick="setFilter('cat-ausencia')">Aus</button>
+        </div>
         
-        <div id="workerList" style="flex-grow: 1; overflow-y: auto;"></div>
+        <div id="workerList" style="flex: 1; overflow-y: auto;"></div>
     </div>
 
     <div id="calendar-container">
@@ -90,11 +91,11 @@
     </div>
 </div>
 
-<div class="modal fade" id="eventModal" tabindex="-1" style="z-index: 3100;">
+<div class="modal fade" id="eventModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Gestión de Registro</h5>
+                <h5 class="modal-title" id="modalTitle">Registro</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -113,31 +114,23 @@
                             <option value="cat-retiro">Retiro Anticipado</option>
                         </select>
                     </div>
-
-                    <div id="divDistintivo" class="mb-3" style="display:none;">
+                    <div id="divDistintivo" style="display:none;" class="mb-3">
                         <label class="form-label">Subtipo</label>
                         <select id="vacDistintivo" class="form-select">
                             <option value="[V]">Vacaciones (V)</option>
                             <option value="[P]">Permiso Administrativo (P)</option>
                         </select>
                     </div>
-
-                    <div id="divHoraRetiro" class="mb-3" style="display:none;">
-                        <label class="form-label">Hora de Retiro</label>
-                        <input type="time" id="retiroTime" class="form-control">
-                    </div>
-
                     <div class="row">
                         <div class="col-6 mb-3">
-                            <label class="form-label" id="labelFechaInicio">Fecha Inicio</label>
+                            <label class="form-label">Desde</label>
                             <input type="date" id="startDate" class="form-control" required>
                         </div>
                         <div class="col-6 mb-3" id="divFechaFin">
-                            <label class="form-label">Fecha Fin</label>
+                            <label class="form-label">Hasta</label>
                             <input type="date" id="endDate" class="form-control">
                         </div>
                     </div>
-                    
                     <div class="mb-3">
                         <label class="form-label">Observaciones</label>
                         <textarea id="comments" class="form-control" rows="2"></textarea>
@@ -146,14 +139,14 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-danger d-none" id="btnDelete" onclick="deleteEvent()">Eliminar</button>
-                <button type="button" class="btn btn-primary w-100" onclick="saveEvent()">Guardar</button>
+                <button type="button" class="btn btn-primary" onclick="saveEvent()">Guardar Datos</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // Configuración Firebase
+    // 1. Configuración de Seguridad
     const firebaseConfig = {
         apiKey: "AIzaSyAQeXVFJJ1e4HWVzSY7YcerP9_XXEKnOJo",
         authDomain: "calendario-asistencia.firebaseapp.com",
@@ -170,177 +163,90 @@
     let events = [];
     let currentFilter = 'all';
 
-    // Función auxiliar de formato de fecha
-    function formatDateDisplay(dateStr) {
-        if (!dateStr) return "-";
-        const parts = dateStr.split('-');
-        if (parts.length !== 3) return dateStr;
-        return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-
+    // 2. Inicialización Robusta
     document.addEventListener('DOMContentLoaded', function() {
-        // Inicializar Calendario
-        calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
-            initialView: 'dayGridMonth',
+        const calendarEl = document.getElementById('calendar');
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: window.innerWidth < 768 ? 'listMonth' : 'dayGridMonth',
             locale: 'es',
             firstDay: 1,
-            height: '100%',
             headerToolbar: { 
-                left: 'prev,next today', 
+                left: 'prev,next', 
                 center: 'title', 
-                right: 'fullScreen listMonth,dayGridMonth' 
+                right: 'today listMonth,dayGridMonth' 
             },
-            customButtons: {
-                fullScreen: {
-                    text: 'Pantalla Completa',
-                    click: function() { toggleFullScreen(); }
-                }
-            },
+            eventClick: (info) => openEditModal(info.event),
             eventDidMount: function(info) {
                 const p = info.event.extendedProps;
-                const tipoMap = {
-                    'cat-vacaciones': 'Vacaciones/Permiso',
-                    'cat-licencia': 'Licencia Médica',
-                    'cat-ausencia': 'Ausencia',
-                    'cat-retiro': 'Retiro Anticipado'
-                };
-                const tooltip = `Trabajador: ${p.pureName}\nTipo: ${tipoMap[p.rawType]}\nObservación: ${p.comment || 'Sin notas'}`;
-                info.el.setAttribute('title', tooltip);
-            },
-            eventClick: (info) => openEditModal(info.event)
+                info.el.setAttribute('title', `Nota: ${p.comment || 'Sin notas'}`);
+            }
         });
         calendar.render();
 
-        // Escuchar cambios en Firebase
+        // Carga de Datos con Protección
         db.on('value', (snapshot) => {
-            const data = snapshot.val();
-            events = [];
-            if (data) Object.keys(data).forEach(key => events.push({ id: key, ...data[key] }));
-            refreshAll();
+            try {
+                const data = snapshot.val();
+                events = [];
+                if (data) {
+                    Object.keys(data).forEach(key => {
+                        const item = data[key];
+                        // Blindaje: Si falta el nombre, asigna "Sin Nombre" para no romper el código
+                        events.push({ 
+                            id: key, 
+                            ...item,
+                            pureName: item.pureName || "Sin Nombre",
+                            rawType: item.rawType || "cat-ausencia"
+                        });
+                    });
+                }
+                refreshAll();
+            } catch (err) {
+                console.error("Error cargando datos:", err);
+            }
         });
     });
 
-    // Función para mostrar KPIs en ventana nueva
-    function showKPIs() {
-        if (events.length === 0) return alert("No hay datos para analizar");
+    // 3. Funciones de Interfaz
+    function refreshAll() {
+        if (!calendar) return;
+        const search = (document.getElementById('workerSearch').value || "").toLowerCase();
+        
+        const filtered = events.filter(e => {
+            const matchesSearch = e.pureName.toLowerCase().includes(search);
+            const matchesFilter = (currentFilter === 'all' || e.rawType === currentFilter);
+            return matchesSearch && matchesFilter;
+        });
 
-        const stats = {
-            vacaciones: events.filter(e => e.rawType === 'cat-vacaciones').length,
-            licencias: events.filter(e => e.rawType === 'cat-licencia').length,
-            ausencias: events.filter(e => e.rawType === 'cat-ausencia').length,
-            retiros: events.filter(e => e.rawType === 'cat-retiro').length
-        };
+        calendar.removeAllEvents();
+        calendar.addEventSource(filtered);
 
-        const total = events.length;
-
-        const reportWindow = window.open("", "ReporteKPI", "width=600,height=750");
-        reportWindow.document.write(`
-            <html>
-            <head>
-                <title>Reporte de Asistencias KPI</title>
-                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-                <style>body { padding: 30px; font-family: sans-serif; background: #f4f7f6; }</style>
-            </head>
-            <body>
-                <h4 class="mb-4 text-center">Dashboard de Análisis de Personal</h4>
-                <div class="row text-center mb-4">
-                    <div class="col-6">
-                        <div class="card shadow-sm p-3"><strong>Total Registros</strong><br><h2 class="text-primary">${total}</h2></div>
-                    </div>
-                    <div class="col-6">
-                        <div class="card shadow-sm p-3"><strong>Tasa Ausentismo</strong><br><h2 class="text-danger">${((stats.ausencias / total) * 100).toFixed(1)}%</h2></div>
-                    </div>
-                </div>
-                
-                <div style="max-width: 350px; margin: auto;" class="bg-white p-3 rounded shadow-sm">
-                    <canvas id="kpiChart"></canvas>
-                </div>
-
-                <table class="table table-bordered table-striped mt-4 bg-white shadow-sm">
-                    <thead class="table-dark"><tr><th>Motivo</th><th>Cant.</th><th>%</th></tr></thead>
-                    <tbody>
-                        <tr><td>Vacaciones/Permisos</td><td>${stats.vacaciones}</td><td>${((stats.vacaciones/total)*100).toFixed(1)}%</td></tr>
-                        <tr><td>Licencias Médicas</td><td>${stats.licencias}</td><td>${((stats.licencias/total)*100).toFixed(1)}%</td></tr>
-                        <tr><td>Ausencias Injust.</td><td>${stats.ausencias}</td><td>${((stats.ausencias/total)*100).toFixed(1)}%</td></tr>
-                        <tr><td>Retiros Anticipados</td><td>${stats.retiros}</td><td>${((stats.retiros/total)*100).toFixed(1)}%</td></tr>
-                    </tbody>
-                </table>
-                <p class="text-muted small text-center mt-3">Generado automáticamente por el Sistema de Asistencia</p>
-
-                <script>
-                    const ctx = document.getElementById('kpiChart').getContext('2d');
-                    new Chart(ctx, {
-                        type: 'pie',
-                        data: {
-                            labels: ['V/P', 'Licencias', 'Ausencias', 'Retiros'],
-                            datasets: [{
-                                data: [${stats.vacaciones}, ${stats.licencias}, ${stats.ausencias}, ${stats.retiros}],
-                                backgroundColor: ['#28a745', '#007bff', '#dc3545', '#343a40'],
-                                borderWeight: 1
-                            }]
-                        },
-                        options: { 
-                            responsive: true, 
-                            plugins: { legend: { position: 'bottom' } } 
-                        }
-                    });
-                </script>
-            </body>
-            </html>
-        `);
-    }
-
-    // Exportación a Excel
-    function exportToExcel() {
-        if (events.length === 0) return alert("No hay datos para exportar");
-        const dataToExport = events.map(ev => ({
-            "Trabajador": ev.pureName,
-            "Tipo": ev.rawType.replace('cat-', '').toUpperCase(),
-            "Subtipo": ev.distintivo || '-',
-            "Inicio": formatDateDisplay(ev.start),
-            "Fin Real": formatDateDisplay(ev.realEnd),
-            "Hora Retiro": ev.retiroTime || '-',
-            "Observaciones": ev.comment || ''
-        }));
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Asistencias");
-        XLSX.writeFile(workbook, "Reporte_Asistencias.xlsx");
-    }
-
-    function toggleFullScreen() {
-        let elem = document.getElementById("calendar-container");
-        if (!document.fullscreenElement) elem.requestFullscreen();
-        else document.exitFullscreen();
-    }
-
-    function setFilter(type) {
-        currentFilter = type;
-        refreshAll();
+        const list = document.getElementById('workerList');
+        list.innerHTML = '';
+        filtered.slice(0, 50).forEach(ev => { // Límite de 50 para no colapsar móvil
+            list.innerHTML += `<div class="sidebar-item" onclick="openEditById('${ev.id}')">
+                <strong>${ev.pureName}</strong><br><small>${ev.start}</small></div>`;
+        });
     }
 
     function handleTypeChange() {
         const type = document.getElementById('regType').value;
         document.getElementById('divDistintivo').style.display = (type === 'cat-vacaciones') ? 'block' : 'none';
-        document.getElementById('divHoraRetiro').style.display = (type === 'cat-retiro') ? 'block' : 'none';
         document.getElementById('divFechaFin').style.display = (type === 'cat-retiro') ? 'none' : 'block';
-        document.getElementById('labelFechaInicio').innerText = (type === 'cat-retiro') ? "Fecha Retiro" : "Fecha Inicio";
     }
 
     function openCreateModal() {
         forceCloseSidebar();
-        const inst = bootstrap.Modal.getOrCreateInstance(document.getElementById('eventModal'));
         document.getElementById('attendanceForm').reset();
         document.getElementById('editId').value = '';
         document.getElementById('btnDelete').classList.add('d-none');
+        document.getElementById('modalTitle').innerText = "Nuevo Registro";
         handleTypeChange();
-        inst.show();
+        new bootstrap.Modal(document.getElementById('eventModal')).show();
     }
 
     function openEditModal(event) {
         forceCloseSidebar();
-        const inst = bootstrap.Modal.getOrCreateInstance(document.getElementById('eventModal'));
         const p = event.extendedProps;
         document.getElementById('editId').value = event.id;
         document.getElementById('workerName').value = p.pureName || '';
@@ -348,38 +254,40 @@
         document.getElementById('startDate').value = event.startStr;
         document.getElementById('endDate').value = p.realEnd || event.startStr;
         document.getElementById('comments').value = p.comment || '';
-        document.getElementById('retiroTime').value = p.retiroTime || '';
-        if (p.distintivo) document.getElementById('vacDistintivo').value = p.distintivo;
-        handleTypeChange();
         document.getElementById('btnDelete').classList.remove('d-none');
-        inst.show();
+        document.getElementById('modalTitle').innerText = "Editar Registro";
+        handleTypeChange();
+        new bootstrap.Modal(document.getElementById('eventModal')).show();
     }
 
+    function openEditById(id) {
+        const ev = calendar.getEventById(id);
+        if(ev) openEditModal(ev);
+    }
+
+    // 4. Lógica de Negocio
     function saveEvent() {
         const id = document.getElementById('editId').value;
         const worker = document.getElementById('workerName').value;
         const start = document.getElementById('startDate').value;
         const type = document.getElementById('regType').value;
-        const hora = document.getElementById('retiroTime').value;
-        let endInput = (type === 'cat-retiro') ? start : (document.getElementById('endDate').value || start);
-        const dist = (type === 'cat-vacaciones') ? document.getElementById('vacDistintivo').value : '';
+        let endInput = document.getElementById('endDate').value || start;
 
-        if (!worker || !start) return alert("Por favor complete Nombre y Fecha");
+        if (!worker || !start) return alert("Faltan campos obligatorios.");
 
-        let calendarEnd = new Date(endInput + 'T00:00:00');
-        calendarEnd.setDate(calendarEnd.getDate() + 1);
-        let finalCalendarStr = calendarEnd.toISOString().split('T')[0];
+        // Ajuste de fecha para FullCalendar
+        let d = new Date(endInput + 'T00:00:00');
+        d.setDate(d.getDate() + 1);
+        let calendarEnd = d.toISOString().split('T')[0];
 
         const data = {
-            title: worker + (dist ? ' ' + dist : '') + (hora ? ' ' + hora : ''),
-            start: start, 
-            end: finalCalendarStr, 
-            realEnd: endInput,     
+            title: worker + (type === 'cat-vacaciones' ? ' ' + document.getElementById('vacDistintivo').value : ''),
+            start: start,
+            end: calendarEnd,
+            realEnd: endInput,
             pureName: worker,
-            rawType: type, 
-            distintivo: dist, 
-            retiroTime: hora,
-            comment: document.getElementById('comments').value, 
+            rawType: type,
+            comment: document.getElementById('comments').value,
             className: [type]
         };
 
@@ -389,46 +297,51 @@
         bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
     }
 
-    function refreshAll() {
-        const search = document.getElementById('workerSearch').value.toLowerCase();
-        const filtered = events.filter(e => {
-            const matchesSearch = e.pureName.toLowerCase().includes(search);
-            const matchesFilter = (currentFilter === 'all' || e.rawType === currentFilter);
-            return matchesSearch && matchesFilter;
-        });
-
-        if(calendar) {
-            calendar.removeAllEvents();
-            calendar.addEventSource(filtered);
-        }
-
-        const list = document.getElementById('workerList');
-        list.innerHTML = '';
-        filtered.forEach(ev => {
-            list.innerHTML += `<div class="sidebar-item" onclick="openEditById('${ev.id}')">
-                <strong>${ev.pureName}</strong><br><small>${formatDateDisplay(ev.start)}</small></div>`;
-        });
-    }
-
-    function openEditById(id) {
-        const ev = calendar.getEventById(id);
-        if(ev) openEditModal(ev);
-    }
-
     function deleteEvent() {
-        if(confirm("¿Estás seguro de eliminar este registro?")) {
+        if(confirm("¿Eliminar este registro permanentemente?")) {
             db.child(document.getElementById('editId').value).remove();
             bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
         }
     }
 
-    function toggleSidebar() {
-        document.getElementById('sidebar').classList.toggle('active');
+    // 5. Herramientas y Reportes
+    function exportToExcel() {
+        try {
+            const data = events.map(e => ({
+                Trabajador: e.pureName,
+                Tipo: e.rawType,
+                Inicio: e.start,
+                Fin: e.realEnd,
+                Nota: e.comment
+            }));
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Reporte");
+            XLSX.writeFile(wb, "Asistencia_RRHH.xlsx");
+        } catch (e) { alert("Error al exportar."); }
     }
 
-    function forceCloseSidebar() {
-        if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('active');
+    function showKPIs() {
+        if (events.length === 0) return alert("Sin datos.");
+        const stats = {
+            v: events.filter(e => e.rawType === 'cat-vacaciones').length,
+            l: events.filter(e => e.rawType === 'cat-licencia').length,
+            a: events.filter(e => e.rawType === 'cat-ausencia').length
+        };
+        const win = window.open("", "_blank", "width=500,height=600");
+        win.document.write(`<html><head><title>KPI</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head><body class="p-4">
+            <h4>Resumen KPI</h4><hr>
+            <p>Vacaciones/Permisos: <b>${stats.v}</b></p>
+            <p>Licencias Médicas: <b>${stats.l}</b></p>
+            <p>Ausencias: <b>${stats.a}</b></p>
+            <hr><button class="btn btn-secondary w-100" onclick="window.close()">Cerrar</button>
+        </body></html>`);
     }
+
+    // Navegación Móvil
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+    function forceCloseSidebar() { if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('active'); }
+    function setFilter(f) { currentFilter = f; refreshAll(); }
 </script>
 </body>
 </html>
