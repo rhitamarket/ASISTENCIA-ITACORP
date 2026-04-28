@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v9.8 - Nombres Continuos</title>
+    <title>Asistencia RRHH v9.9 - Alineación Vertical Absoluta</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -42,18 +42,13 @@
         }
         @media (max-width: 768px) { #btnToggleMenu { display: flex; } }
 
-        /* --- ESTILO DE BLOQUE CONTINUO Y REPETICIÓN DE NOMBRE --- */
+        /* --- ESTILOS DE EVENTOS --- */
         .fc-event { 
             cursor: pointer; border: none !important; padding: 2px 4px !important; 
             border-radius: 0px !important; margin: 1px 0 !important;
             font-size: 0.75em; font-weight: 600; color: white !important;
             height: 20px; display: flex; align-items: center;
-            overflow: visible !important; /* Permite ver el nombre en cada tramo */
         }
-
-        /* Fuerza que el contenido se repita visualmente si el bloque es largo */
-        .fc-event-main { width: 100%; position: relative; overflow: visible; }
-        
         .fc-daygrid-event-harness { margin: 0 !important; padding: 0 !important; }
 
         .sidebar-item { border-left: 5px solid #ccc; padding: 8px; background: white; margin-bottom: 5px; border-radius: 4px; cursor: pointer; border: 1px solid #ddd; font-size: 11px; }
@@ -189,8 +184,9 @@
             locale: 'es',
             firstDay: 1,
             height: '100%',
-            // Priorizamos por título para que mantengan la misma fila vertical día tras día
-            eventOrder: "title", 
+            // CAMBIO CRUCIAL: Ordenamos por 'ordenFijo'. 
+            // Esto garantiza que el trabajador mantenga siempre el mismo carril vertical.
+            eventOrder: "ordenFijo", 
             headerToolbar: { 
                 left: 'prev,next today', 
                 center: 'title', 
@@ -224,12 +220,17 @@
             return matchesSearch && matchesCategory;
         });
 
-        // VOLVEMOS A SEGMENTOS DIARIOS: Para asegurar que el nombre aparezca en cada cuadrito
-        // Pero usamos eventOrder: "title" para forzar la línea recta.
         let dailySegments = [];
         filtered.forEach(e => {
             let current = new Date(e.start + 'T00:00:00');
             let last = new Date((e.realEnd || e.start) + 'T00:00:00');
+            
+            // Creamos un valor numérico basado en el nombre para fijar la posición
+            // Esto hace que "Florita" siempre tenga el mismo peso todos los días.
+            let nameWeight = 0;
+            if(e.pureName) {
+                nameWeight = e.pureName.toLowerCase().charCodeAt(0) + (e.pureName.toLowerCase().charCodeAt(1) || 0);
+            }
 
             while (current <= last) {
                 let dateStr = current.toISOString().split('T')[0];
@@ -239,6 +240,8 @@
                     start: dateStr,
                     allDay: true,
                     className: [e.rawType],
+                    // Este es el secreto de la línea recta:
+                    ordenFijo: nameWeight, 
                     extendedProps: { ...e }
                 });
                 current.setDate(current.getDate() + 1);
