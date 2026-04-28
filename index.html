@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v9.9 - Alineación Vertical Absoluta</title>
+    <title>Asistencia RRHH v10.1 - Funcionalidad Completa + Carriles</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -64,7 +64,7 @@
 
 <div class="main-wrapper">
     <div id="sidebar">
-        <h5 class="mb-3">Panel RRHH</h5>
+        <h5 class="mb-3">Panel RRHH v10.1</h5>
         
         <div class="d-grid gap-2 mb-3">
             <button class="btn btn-success btn-sm" onclick="openCreateModal()">+ NUEVO REGISTRO</button>
@@ -76,7 +76,7 @@
 
         <hr class="my-2">
         
-        <input type="text" id="workerSearch" class="form-control form-control-sm mb-2" placeholder="🔍 Buscar..." onkeyup="refreshAll()">
+        <input type="text" id="workerSearch" class="form-control form-control-sm mb-2" placeholder="🔍 Buscar trabajador..." onkeyup="refreshAll()">
 
         <div class="d-flex flex-wrap gap-1 mb-3">
             <button class="btn btn-light border btn-sm flex-fill py-0" onclick="setFilter('all')">Todos</button>
@@ -168,14 +168,23 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database().ref('asistencias');
-    let calendar;
-    let events = [];
-    let currentFilter = 'all';
+    let calendar, events = [], currentFilter = 'all';
 
     function formatToDMY(dateStr) {
         if(!dateStr) return '';
         const parts = dateStr.split('-');
         return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+
+    // Motor de Peso para asegurar que cada trabajador tenga su carril fijo
+    function getWorkerWeight(name) {
+        if(!name) return 999999;
+        let clean = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        let weight = 0;
+        for (let i = 0; i < Math.min(clean.length, 6); i++) {
+            weight += clean.charCodeAt(i) * Math.pow(10, (6 - i) * 2);
+        }
+        return weight;
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -184,9 +193,8 @@
             locale: 'es',
             firstDay: 1,
             height: '100%',
-            // CAMBIO CRUCIAL: Ordenamos por 'ordenFijo'. 
-            // Esto garantiza que el trabajador mantenga siempre el mismo carril vertical.
-            eventOrder: "ordenFijo", 
+            // ORDENAMIENTO CRÍTICO: Por el peso numérico del trabajador
+            eventOrder: "workerWeight", 
             headerToolbar: { 
                 left: 'prev,next today', 
                 center: 'title', 
@@ -198,12 +206,7 @@
 
         db.on('value', (snapshot) => {
             const data = snapshot.val();
-            events = [];
-            if (data) {
-                Object.keys(data).forEach(key => {
-                    events.push({ id: key, ...data[key] });
-                });
-            }
+            events = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
             refreshAll();
         });
     });
@@ -222,26 +225,19 @@
 
         let dailySegments = [];
         filtered.forEach(e => {
-            let current = new Date(e.start + 'T00:00:00');
-            let last = new Date((e.realEnd || e.start) + 'T00:00:00');
-            
-            // Creamos un valor numérico basado en el nombre para fijar la posición
-            // Esto hace que "Florita" siempre tenga el mismo peso todos los días.
-            let nameWeight = 0;
-            if(e.pureName) {
-                nameWeight = e.pureName.toLowerCase().charCodeAt(0) + (e.pureName.toLowerCase().charCodeAt(1) || 0);
-            }
+            let start = new Date(e.start + 'T00:00:00');
+            let end = new Date((e.realEnd || e.start) + 'T00:00:00');
+            let weight = getWorkerWeight(e.pureName);
 
-            while (current <= last) {
-                let dateStr = current.toISOString().split('T')[0];
+            let current = new Date(start);
+            while (current <= end) {
                 dailySegments.push({
                     id: e.id,
                     title: e.pureName + (e.exitTime ? ' ('+e.exitTime+')' : '') + (e.distintivo ? ' ' + e.distintivo : ''),
-                    start: dateStr,
+                    start: current.toISOString().split('T')[0],
                     allDay: true,
                     className: [e.rawType],
-                    // Este es el secreto de la línea recta:
-                    ordenFijo: nameWeight, 
+                    workerWeight: weight, // El calendario usará esto para no mover a Florita
                     extendedProps: { ...e }
                 });
                 current.setDate(current.getDate() + 1);
@@ -298,25 +294,17 @@
 
     function saveEvent() {
         const id = document.getElementById('editId').value;
-        const worker = document.getElementById('workerName').value;
-        const start = document.getElementById('startDate').value;
         const type = document.getElementById('regType').value;
-        let endInput = document.getElementById('endDate').value || start;
-
-        if (!worker || !start) return alert("Faltan datos.");
-
         const data = {
-            pureName: worker,
-            start: start,
-            realEnd: (type === 'cat-retiro') ? start : endInput,
+            pureName: document.getElementById('workerName').value,
+            start: document.getElementById('startDate').value,
+            realEnd: (type === 'cat-retiro') ? document.getElementById('startDate').value : (document.getElementById('endDate').value || document.getElementById('startDate').value),
             rawType: type,
             exitTime: (type === 'cat-retiro') ? document.getElementById('exitTime').value : '',
             distintivo: (type === 'cat-vacaciones') ? document.getElementById('vacDistintivo').value : '',
             comment: document.getElementById('comments').value
         };
-
-        if (id) db.child(id).update(data);
-        else db.push(data);
+        if (id) db.child(id).update(data); else db.push(data);
         bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
     }
 
@@ -339,7 +327,7 @@
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Asistencia");
-        XLSX.writeFile(wb, "Reporte_RRHH.xlsx");
+        XLSX.writeFile(wb, "Reporte_Asistencia.xlsx");
     }
 
     function toggleFullScreenCalendar() {
@@ -348,7 +336,7 @@
             if (container.requestFullscreen) container.requestFullscreen();
             else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
         } else {
-            if (document.exitFullscreen) document.exitFullscreen();
+            document.exitFullscreen();
         }
     }
 
