@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v9.2 - Final Fix</title>
+    <title>Asistencia RRHH v9.3 - Alineación Total</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -26,6 +26,10 @@
         #calendar-container { flex-grow: 1; position: relative; background: white; overflow: hidden; display: flex; flex-direction: column; }
         #calendar { flex-grow: 1; }
 
+        /* Estilo para Pantalla Completa del Calendario únicamente */
+        #calendar-container:fullscreen { background: white; padding: 10px; }
+        #calendar-container:-webkit-full-screen { background: white; padding: 10px; }
+
         @media (max-width: 768px) {
             #sidebar { position: absolute; left: 0; top: 0; height: 100%; transform: translateX(-100%); width: 280px; }
             #sidebar.active { transform: translateX(0); box-shadow: 5px 0 15px rgba(0,0,0,0.2); }
@@ -39,14 +43,15 @@
         }
         @media (max-width: 768px) { #btnToggleMenu { display: flex; } }
 
-        /* --- ALINEACIÓN RECTA Y ESTÉTICA --- */
+        /* --- ALINEACIÓN ESTRICTA --- */
         .fc-event { 
             cursor: pointer; border: none !important; padding: 2px 4px !important; 
             border-radius: 0px !important; margin: 1px 0 !important;
             font-size: 0.75em; font-weight: 600; color: white !important;
             height: 20px; display: flex; align-items: center;
         }
-        .fc-daygrid-event-harness { margin-top: 0 !important; } /* Elimina saltos de línea extra */
+        /* Forzamos que no haya espacios de aire entre eventos */
+        .fc-daygrid-event-harness { margin: 0 !important; padding: 0 !important; }
 
         .sidebar-item { border-left: 5px solid #ccc; padding: 8px; background: white; margin-bottom: 5px; border-radius: 4px; cursor: pointer; border: 1px solid #ddd; font-size: 11px; }
         .cat-vacaciones { background-color: var(--verde) !important; }
@@ -67,7 +72,7 @@
             <button class="btn btn-success btn-sm" onclick="openCreateModal()">+ NUEVO REGISTRO</button>
             <div class="btn-group">
                 <button class="btn btn-outline-dark btn-sm" onclick="exportToExcel()">Excel</button>
-                <button class="btn btn-outline-secondary btn-sm" onclick="toggleFullScreen()">Pantalla Completa</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="toggleFullScreenCalendar()">Full Calendario</button>
             </div>
         </div>
 
@@ -169,7 +174,6 @@
     let events = [];
     let currentFilter = 'all';
 
-    // Función para formatear fecha a dd-mm-yyyy
     function formatToDMY(dateStr) {
         if(!dateStr) return '';
         const parts = dateStr.split('-');
@@ -182,7 +186,7 @@
             locale: 'es',
             firstDay: 1,
             height: '100%',
-            // FORZAR ORDEN: Prioriza el nombre para que la línea sea recta
+            // ORDENAMIENTO ESTRICTO: Por título (Nombre) para mantener la misma fila vertical
             eventOrder: "title", 
             headerToolbar: { 
                 left: 'prev,next today', 
@@ -330,11 +334,19 @@
         XLSX.writeFile(wb, "Reporte_RRHH.xlsx");
     }
 
-    function toggleFullScreen() {
+    // PANTALLA COMPLETA SOLO PARA EL CALENDARIO
+    function toggleFullScreenCalendar() {
+        const container = document.getElementById('calendar-container');
         if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen();
+            if (container.requestFullscreen) {
+                container.requestFullscreen();
+            } else if (container.webkitRequestFullscreen) {
+                container.webkitRequestFullscreen();
+            }
         } else {
-            if (document.exitFullscreen) document.exitFullscreen();
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
         }
     }
 
