@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia RRHH v9.1 - Filtros Pro</title>
+    <title>Asistencia RRHH v9.2 - Final Fix</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -23,8 +23,8 @@
             flex-shrink: 0; z-index: 2000; transition: all 0.3s ease; 
         }
 
-        #calendar-container { flex-grow: 1; position: relative; background: white; overflow: hidden; }
-        #calendar { height: 100%; }
+        #calendar-container { flex-grow: 1; position: relative; background: white; overflow: hidden; display: flex; flex-direction: column; }
+        #calendar { flex-grow: 1; }
 
         @media (max-width: 768px) {
             #sidebar { position: absolute; left: 0; top: 0; height: 100%; transform: translateX(-100%); width: 280px; }
@@ -39,24 +39,20 @@
         }
         @media (max-width: 768px) { #btnToggleMenu { display: flex; } }
 
-        /* --- CONTINUIDAD Y NOMBRE REPETIDO --- */
+        /* --- ALINEACIÓN RECTA Y ESTÉTICA --- */
         .fc-event { 
             cursor: pointer; border: none !important; padding: 2px 4px !important; 
-            border-radius: 0px !important; margin: 0.5px 0 !important;
-            font-size: 0.78em; font-weight: 600; color: white !important;
-            height: 22px; display: flex; align-items: center;
+            border-radius: 0px !important; margin: 1px 0 !important;
+            font-size: 0.75em; font-weight: 600; color: white !important;
+            height: 20px; display: flex; align-items: center;
         }
-        .event-segment { border-left: 0.5px solid rgba(255,255,255,0.3) !important; }
+        .fc-daygrid-event-harness { margin-top: 0 !important; } /* Elimina saltos de línea extra */
 
-        .sidebar-item { border-left: 5px solid #ccc; padding: 10px; background: white; margin-bottom: 8px; border-radius: 4px; cursor: pointer; border: 1px solid #ddd; font-size: 12px; }
-        
-        /* Colores por Categoría */
+        .sidebar-item { border-left: 5px solid #ccc; padding: 8px; background: white; margin-bottom: 5px; border-radius: 4px; cursor: pointer; border: 1px solid #ddd; font-size: 11px; }
         .cat-vacaciones { background-color: var(--verde) !important; }
         .cat-licencia { background-color: var(--azul) !important; }
         .cat-ausencia { background-color: var(--rojo) !important; }
         .cat-retiro { background-color: var(--negro) !important; }
-        
-        .filter-btn { font-size: 0.75rem; font-weight: bold; padding: 4px 8px; }
     </style>
 </head>
 <body>
@@ -65,25 +61,26 @@
 
 <div class="main-wrapper">
     <div id="sidebar">
-        <h5 class="mb-3">Control RRHH</h5>
+        <h5 class="mb-3">Panel RRHH</h5>
         
         <div class="d-grid gap-2 mb-3">
-            <button class="btn btn-success" onclick="openCreateModal()">+ NUEVO REGISTRO</button>
-            <button class="btn btn-outline-dark btn-sm" onclick="exportToExcel()">Descargar reporte Excel</button>
+            <button class="btn btn-success btn-sm" onclick="openCreateModal()">+ NUEVO REGISTRO</button>
+            <div class="btn-group">
+                <button class="btn btn-outline-dark btn-sm" onclick="exportToExcel()">Excel</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="toggleFullScreen()">Pantalla Completa</button>
+            </div>
         </div>
 
-        <hr>
+        <hr class="my-2">
         
-        <div class="mb-2">
-            <input type="text" id="workerSearch" class="form-control form-control-sm" placeholder="🔍 Buscar nombre..." onkeyup="refreshAll()">
-        </div>
+        <input type="text" id="workerSearch" class="form-control form-control-sm mb-2" placeholder="🔍 Buscar..." onkeyup="refreshAll()">
 
         <div class="d-flex flex-wrap gap-1 mb-3">
-            <button class="btn btn-light border btn-sm filter-btn flex-fill" onclick="setFilter('all')">Todos</button>
-            <button class="btn btn-success btn-sm filter-btn flex-fill" onclick="setFilter('cat-vacaciones')">V/P</button>
-            <button class="btn btn-primary btn-sm filter-btn flex-fill" onclick="setFilter('cat-licencia')">Lic</button>
-            <button class="btn btn-danger btn-sm filter-btn flex-fill" onclick="setFilter('cat-ausencia')">Aus</button>
-            <button class="btn btn-dark btn-sm filter-btn flex-fill" onclick="setFilter('cat-retiro')">Ret</button>
+            <button class="btn btn-light border btn-sm flex-fill py-0" onclick="setFilter('all')">Todos</button>
+            <button class="btn btn-success btn-sm flex-fill py-0" onclick="setFilter('cat-vacaciones')">V/P</button>
+            <button class="btn btn-primary btn-sm flex-fill py-0" onclick="setFilter('cat-licencia')">Lic</button>
+            <button class="btn btn-danger btn-sm flex-fill py-0" onclick="setFilter('cat-ausencia')">Aus</button>
+            <button class="btn btn-dark btn-sm flex-fill py-0" onclick="setFilter('cat-retiro')">Ret</button>
         </div>
 
         <div id="workerList" style="flex: 1; overflow-y: auto;"></div>
@@ -98,18 +95,18 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle">Registro</h5>
+                <h5 class="modal-title" id="modalTitle">Registro de Asistencia</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="attendanceForm">
                     <input type="hidden" id="editId">
-                    <div class="mb-3">
-                        <label class="form-label">Trabajador</label>
+                    <div class="mb-2">
+                        <label class="form-label small">Nombre Trabajador</label>
                         <input type="text" id="workerName" class="form-control" required>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Tipo</label>
+                    <div class="mb-2">
+                        <label class="form-label small">Tipo de Ausencia</label>
                         <select id="regType" class="form-select" onchange="handleTypeChange()">
                             <option value="cat-vacaciones">Vacaciones / Permiso</option>
                             <option value="cat-licencia">Licencia Médica</option>
@@ -117,32 +114,39 @@
                             <option value="cat-retiro">Retiro Anticipado</option>
                         </select>
                     </div>
-                    <div id="divDistintivo" style="display:none;" class="mb-3">
-                        <label class="form-label">Subtipo</label>
+                    
+                    <div id="divDistintivo" style="display:none;" class="mb-2">
+                        <label class="form-label small">Subtipo</label>
                         <select id="vacDistintivo" class="form-select">
                             <option value="[V]">Vacaciones (V)</option>
                             <option value="[P]">Permiso Administrativo (P)</option>
                         </select>
                     </div>
+
+                    <div id="divHoraRetiro" style="display:none;" class="mb-2">
+                        <label class="form-label small">Hora de Salida</label>
+                        <input type="time" id="exitTime" class="form-control">
+                    </div>
+
                     <div class="row">
-                        <div class="col-6 mb-3">
-                            <label class="form-label">Desde</label>
+                        <div class="col-6 mb-2">
+                            <label class="form-label small">Fecha Inicio</label>
                             <input type="date" id="startDate" class="form-control" required>
                         </div>
-                        <div class="col-6 mb-3" id="divFechaFin">
-                            <label class="form-label">Hasta</label>
+                        <div class="col-6 mb-2" id="divFechaFin">
+                            <label class="form-label small">Fecha Fin</label>
                             <input type="date" id="endDate" class="form-control">
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Observaciones</label>
+                    <div class="mb-2">
+                        <label class="form-label small">Observaciones</label>
                         <textarea id="comments" class="form-control" rows="2"></textarea>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-danger d-none" id="btnDelete" onclick="deleteEvent()">Eliminar</button>
-                <button type="button" class="btn btn-primary" onclick="saveEvent()">Guardar</button>
+                <button type="button" class="btn btn-sm btn-danger d-none" id="btnDelete" onclick="deleteEvent()">Eliminar</button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="saveEvent()">Guardar Registro</button>
             </div>
         </div>
     </div>
@@ -165,12 +169,20 @@
     let events = [];
     let currentFilter = 'all';
 
+    // Función para formatear fecha a dd-mm-yyyy
+    function formatToDMY(dateStr) {
+        if(!dateStr) return '';
+        const parts = dateStr.split('-');
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
             initialView: 'dayGridMonth',
             locale: 'es',
             firstDay: 1,
             height: '100%',
+            // FORZAR ORDEN: Prioriza el nombre para que la línea sea recta
             eventOrder: "title", 
             headerToolbar: { 
                 left: 'prev,next today', 
@@ -193,10 +205,7 @@
         });
     });
 
-    function setFilter(f) {
-        currentFilter = f;
-        refreshAll();
-    }
+    function setFilter(f) { currentFilter = f; refreshAll(); }
 
     function refreshAll() {
         if (!calendar) return;
@@ -217,10 +226,10 @@
                 let dateStr = current.toISOString().split('T')[0];
                 dailySegments.push({
                     id: e.id,
-                    title: e.pureName + (e.distintivo ? ' ' + e.distintivo : ''),
+                    title: e.pureName + (e.exitTime ? ' ('+e.exitTime+')' : '') + (e.distintivo ? ' ' + e.distintivo : ''),
                     start: dateStr,
                     allDay: true,
-                    className: [e.rawType, 'event-segment'],
+                    className: [e.rawType],
                     extendedProps: { ...e }
                 });
                 current.setDate(current.getDate() + 1);
@@ -234,7 +243,8 @@
         list.innerHTML = '';
         filtered.forEach(ev => {
             list.innerHTML += `<div class="sidebar-item" onclick="openEditModalById('${ev.id}')">
-                <strong>${ev.pureName}</strong><br><small>${ev.start} al ${ev.realEnd || ev.start}</small></div>`;
+                <strong>${ev.pureName}</strong><br>
+                <small>${formatToDMY(ev.start)} al ${formatToDMY(ev.realEnd || ev.start)}</small></div>`;
         });
     }
 
@@ -248,7 +258,9 @@
         document.getElementById('startDate').value = original.start;
         document.getElementById('endDate').value = original.realEnd || original.start;
         document.getElementById('comments').value = original.comment || '';
+        document.getElementById('exitTime').value = original.exitTime || '';
         if (original.distintivo) document.getElementById('vacDistintivo').value = original.distintivo;
+        
         document.getElementById('btnDelete').classList.remove('d-none');
         document.getElementById('modalTitle').innerText = "Editar Registro";
         handleTypeChange();
@@ -258,6 +270,7 @@
     function handleTypeChange() {
         const type = document.getElementById('regType').value;
         document.getElementById('divDistintivo').style.display = (type === 'cat-vacaciones') ? 'block' : 'none';
+        document.getElementById('divHoraRetiro').style.display = (type === 'cat-retiro') ? 'block' : 'none';
         document.getElementById('divFechaFin').style.display = (type === 'cat-retiro') ? 'none' : 'block';
     }
 
@@ -277,33 +290,52 @@
         const start = document.getElementById('startDate').value;
         const type = document.getElementById('regType').value;
         let endInput = document.getElementById('endDate').value || start;
+
         if (!worker || !start) return alert("Faltan datos.");
+
         const data = {
             pureName: worker,
             start: start,
             realEnd: (type === 'cat-retiro') ? start : endInput,
             rawType: type,
+            exitTime: (type === 'cat-retiro') ? document.getElementById('exitTime').value : '',
             distintivo: (type === 'cat-vacaciones') ? document.getElementById('vacDistintivo').value : '',
             comment: document.getElementById('comments').value
         };
+
         if (id) db.child(id).update(data);
         else db.push(data);
         bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
     }
 
     function deleteEvent() {
-        if(confirm("¿Eliminar registro?")) {
+        if(confirm("¿Eliminar definitivamente?")) {
             db.child(document.getElementById('editId').value).remove();
             bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
         }
     }
 
     function exportToExcel() {
-        const data = events.map(e => ({ Trabajador: e.pureName, Tipo: e.rawType, Inicio: e.start, Fin: e.realEnd, Nota: e.comment }));
+        const data = events.map(e => ({ 
+            Trabajador: e.pureName, 
+            Tipo: e.rawType, 
+            Inicio: formatToDMY(e.start), 
+            Fin: formatToDMY(e.realEnd),
+            Hora: e.exitTime || '',
+            Nota: e.comment 
+        }));
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Asistencia");
-        XLSX.writeFile(wb, "Reporte_Asistencia.xlsx");
+        XLSX.writeFile(wb, "Reporte_RRHH.xlsx");
+    }
+
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            if (document.exitFullscreen) document.exitFullscreen();
+        }
     }
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
