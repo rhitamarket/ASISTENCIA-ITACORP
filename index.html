@@ -74,7 +74,7 @@
 
         <hr class="my-2">
         
-        <!-- Nuevo Filtro por Empresa en Barra Lateral -->
+        <!-- Filtro por Empresa en Barra Lateral -->
         <select id="companyFilter" class="form-select form-select-sm mb-2" onchange="refreshAll()">
             <option value="all">🏢 Todas las Empresas</option>
             <option value="Itamarket EIRL">Itamarket EIRL</option>
@@ -91,7 +91,7 @@
             <button class="btn btn-success btn-sm flex-fill py-1" onclick="setFilter('cat-vacaciones')">V/P</button>
             <button class="btn btn-primary btn-sm flex-fill py-1" onclick="setFilter('cat-licencia')">Lic</button>
             <button class="btn btn-danger btn-sm flex-fill py-1" onclick="setFilter('cat-ausencia')">Aus</button>
-            <button class="btn btn-dark btn-sm flex-fill py-1" onclick="setFilter('cat-retiro')">Ret</button>
+            <button class="btn btn-dark btn-sm flex-fill py-1" onclick="setFilter('cat-retiro')">Ret/Atr</button>
         </div>
 
         <div id="workerList" style="flex: 1; overflow-y: auto;"></div>
@@ -133,7 +133,7 @@
                             <option value="cat-vacaciones">Vacaciones / Permiso</option>
                             <option value="cat-licencia">Licencia Médica</option>
                             <option value="cat-ausencia">Ausencia</option>
-                            <option value="cat-retiro">Retiro Anticipado</option>
+                            <option value="cat-retiro">Atraso / Retiro Anticipado</option>
                         </select>
                     </div>
                     
@@ -145,8 +145,17 @@
                         </select>
                     </div>
 
+                    <!-- Nuevo Selector para elegir entre Atraso o Retiro Anticipado -->
+                    <div id="divSubtipoRetiro" style="display:none;" class="mb-2">
+                        <label class="form-label small">Clasificación</label>
+                        <select id="subtipoRetiro" class="form-select">
+                            <option value="Atraso">Atraso (A)</option>
+                            <option value="Retiro Anticipado">Retiro Anticipado (R)</option>
+                        </select>
+                    </div>
+
                     <div id="divHoraRetiro" style="display:none;" class="mb-2">
-                        <label class="form-label small">Hora de Salida</label>
+                        <label class="form-label small">Hora de Evento (Llegada/Salida)</label>
                         <input type="time" id="exitTime" class="form-control">
                     </div>
 
@@ -229,7 +238,7 @@
         const filtered = events.filter(e => {
             const mS = (e.pureName || "").toLowerCase().includes(search);
             const mC = (currentFilter === 'all' || e.rawType === currentFilter);
-            // Nueva evaluación: Verifica si coincide la empresa seleccionada o si está en "all"
+            // Evaluación: Verifica si coincide la empresa seleccionada o si está en "all"
             const mComp = (selectedCompany === 'all' || e.company === selectedCompany);
             
             return mS && mC && mComp;
@@ -241,9 +250,15 @@
             let endF = new Date((e.realEnd || e.start) + 'T00:00:00');
             endF.setDate(endF.getDate() + 1);
 
+            // Lógica para renderizar letra A (Atraso) o R (Retiro Anticipado) en la barra
+            let letraDistintiva = '';
+            if (e.rawType === 'cat-retiro') {
+                letraDistintiva = (e.subtipoRetiro === 'Atraso') ? ' [A]' : ' [R]';
+            }
+
             return {
                 id: e.id,
-                title: e.pureName + (e.exitTime ? ' ('+e.exitTime+')' : '') + (e.distintivo ? ' ' + e.distintivo : ''),
+                title: e.pureName + (e.exitTime ? ' ('+e.exitTime+')' : '') + (e.distintivo ? ' ' + e.distintivo : '') + letraDistintiva,
                 start: e.start,
                 end: endF.toISOString().split('T')[0],
                 allDay: true,
@@ -277,6 +292,7 @@
         document.getElementById('comments').value = original.comment || '';
         document.getElementById('exitTime').value = original.exitTime || '';
         if (original.distintivo) document.getElementById('vacDistintivo').value = original.distintivo;
+        if (original.subtipoRetiro) document.getElementById('subtipoRetiro').value = original.subtipoRetiro;
         
         document.getElementById('btnDelete').classList.remove('d-none');
         document.getElementById('modalTitle').innerText = "Editar Registro";
@@ -287,6 +303,7 @@
     function handleTypeChange() {
         const type = document.getElementById('regType').value;
         document.getElementById('divDistintivo').style.display = (type === 'cat-vacaciones') ? 'block' : 'none';
+        document.getElementById('divSubtipoRetiro').style.display = (type === 'cat-retiro') ? 'block' : 'none';
         document.getElementById('divHoraRetiro').style.display = (type === 'cat-retiro') ? 'block' : 'none';
         document.getElementById('divFechaFin').style.display = (type === 'cat-retiro') ? 'none' : 'block';
     }
@@ -296,6 +313,7 @@
         document.getElementById('attendanceForm').reset();
         document.getElementById('editId').value = '';
         document.getElementById('companyName').value = '';
+        document.getElementById('subtipoRetiro').value = 'Atraso';
         document.getElementById('btnDelete').classList.add('d-none');
         document.getElementById('modalTitle').innerText = "Nuevo Registro";
         handleTypeChange();
@@ -313,6 +331,7 @@
             rawType: type,
             exitTime: (type === 'cat-retiro') ? document.getElementById('exitTime').value : '',
             distintivo: (type === 'cat-vacaciones') ? document.getElementById('vacDistintivo').value : '',
+            subtipoRetiro: (type === 'cat-retiro') ? document.getElementById('subtipoRetiro').value : '',
             comment: document.getElementById('comments').value
         };
         if (id) db.child(id).update(data); else db.push(data);
@@ -330,7 +349,7 @@
         const data = events.map(e => ({ 
             Empresa: e.company || 'No especificada',
             Trabajador: e.pureName, 
-            Tipo: e.rawType, 
+            Tipo: e.rawType === 'cat-retiro' ? (e.subtipoRetiro || 'Atraso/Retiro') : e.rawType, 
             Inicio: formatToDMY(e.start), 
             Fin: formatToDMY(e.realEnd),
             Nota: e.comment 
