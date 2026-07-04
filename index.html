@@ -102,6 +102,17 @@
                 <form id="attendanceForm">
                     <input type="hidden" id="editId">
                     <div class="mb-2">
+                        <label class="form-label small">Empresa</label>
+                        <select id="companyName" class="form-select" required>
+                            <option value="" disabled selected>Seleccione una empresa...</option>
+                            <option value="Itamarket EIRL">Itamarket EIRL</option>
+                            <option value="Kapgroup SpA">Kapgroup SpA</option>
+                            <option value="Itamarket SPA">Itamarket SPA</option>
+                            <option value="Inv. Itahydraulic SpA">Inv. Itahydraulic SpA</option>
+                            <option value="Fluid Supply Spa">Fluid Supply Spa</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
                         <label class="form-label small">Nombre Trabajador</label>
                         <input type="text" id="workerName" class="form-control" required>
                     </div>
@@ -243,6 +254,7 @@
         if (!original) return;
         forceCloseSidebar();
         document.getElementById('editId').value = original.id;
+        document.getElementById('companyName').value = original.company || '';
         document.getElementById('workerName').value = original.pureName || '';
         document.getElementById('regType').value = original.rawType || 'cat-vacaciones';
         document.getElementById('startDate').value = original.start;
@@ -268,6 +280,7 @@
         forceCloseSidebar();
         document.getElementById('attendanceForm').reset();
         document.getElementById('editId').value = '';
+        document.getElementById('companyName').value = '';
         document.getElementById('btnDelete').classList.add('d-none');
         document.getElementById('modalTitle').innerText = "Nuevo Registro";
         handleTypeChange();
@@ -278,6 +291,7 @@
         const id = document.getElementById('editId').value;
         const type = document.getElementById('regType').value;
         const data = {
+            company: document.getElementById('companyName').value,
             pureName: document.getElementById('workerName').value,
             start: document.getElementById('startDate').value,
             realEnd: (type === 'cat-retiro') ? document.getElementById('startDate').value : (document.getElementById('endDate').value || document.getElementById('startDate').value),
@@ -299,6 +313,7 @@
 
     function exportToExcel() {
         const data = events.map(e => ({ 
+            Empresa: e.company || 'No especificada',
             Trabajador: e.pureName, 
             Tipo: e.rawType, 
             Inicio: formatToDMY(e.start), 
