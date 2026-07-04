@@ -73,7 +73,18 @@
         </div>
 
         <hr class="my-2">
-        <input type="text" id="workerSearch" class="form-control form-control-sm mb-2" placeholder="🔍 Buscar..." onkeyup="refreshAll()">
+        
+        <!-- Nuevo Filtro por Empresa en Barra Lateral -->
+        <select id="companyFilter" class="form-select form-select-sm mb-2" onchange="refreshAll()">
+            <option value="all">🏢 Todas las Empresas</option>
+            <option value="Itamarket EIRL">Itamarket EIRL</option>
+            <option value="Kapgroup SpA">Kapgroup SpA</option>
+            <option value="Itamarket SPA">Itamarket SPA</option>
+            <option value="Inv. Itahydraulic SpA">Inv. Itahydraulic SpA</option>
+            <option value="Fluid Supply Spa">Fluid Supply Spa</option>
+        </select>
+
+        <input type="text" id="workerSearch" class="form-control form-control-sm mb-2" placeholder="🔍 Buscar por nombre..." onkeyup="refreshAll()">
 
         <div class="d-flex flex-wrap gap-1 mb-3">
             <button class="btn btn-light border btn-sm flex-fill py-1" onclick="setFilter('all')">Todos</button>
@@ -213,11 +224,15 @@
     function refreshAll() {
         if (!calendar) return;
         const search = (document.getElementById('workerSearch').value || "").toLowerCase();
+        const selectedCompany = document.getElementById('companyFilter').value;
         
         const filtered = events.filter(e => {
             const mS = (e.pureName || "").toLowerCase().includes(search);
             const mC = (currentFilter === 'all' || e.rawType === currentFilter);
-            return mS && mC;
+            // Nueva evaluación: Verifica si coincide la empresa seleccionada o si está en "all"
+            const mComp = (selectedCompany === 'all' || e.company === selectedCompany);
+            
+            return mS && mC && mComp;
         });
 
         // Lógica de Bloques: Solo un evento por rango de fechas
