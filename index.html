@@ -58,11 +58,22 @@
         .cat-ausencia { background-color: var(--rojo) !important; }
         .cat-retiro { background-color: var(--negro) !important; }
 
-        /* Oculta el puntito y la celda del texto "all-day" de las listas de FullCalendar */
+        /* --- SOLUCIÓN PARA VISTAS DE DETALLE (LISTAS) --- */
+        /* 1. Ocultamos el puntito y la celda original del tiempo */
         .fc-list-event-dot { display: none !important; } 
         .fc-list-event-time { display: none !important; }
         .fc-list-event { background-color: transparent !important; }
-        .fc-list-event-title { font-weight: bold; }
+        .fc-list-event-title { font-weight: bold; padding: 10px 14px !important; }
+
+        /* 2. Eliminación radical de líneas blancas internas y bordes residuales (Problema de imagen_ff6661.png) */
+        .fc-list-event td { border: none !important; background: none !important; }
+        .fc-list-event table { border-collapse: collapse !important; border: none !important; }
+        .fc-list-table { border: none !important; }
+
+        /* 3. Corrección del efecto Selección/Hover en los enlaces de las listas (Problema de imagen_ff6a25.png) */
+        .fc-list-event:hover td { background-color: transparent !important; }
+        .fc-list-event-title a { display: block; width: 100%; text-decoration: none !important; color: #ffffff !important; }
+        .fc-list-event-title a:hover { background-color: transparent !important; color: #ffffff !important; }
     </style>
 </head>
 <body>
@@ -227,7 +238,7 @@
             firstDay: 1,
             height: '100%',
             eventOrder: "title", 
-            displayEventTime: false, // Oculta los tiempos de los eventos en las vistas correspondientes
+            displayEventTime: false, 
             
             views: {
                 dayGridMonth: { buttonText: 'Mes Completo' },
@@ -254,9 +265,13 @@
                     
                     tr.style.setProperty('background-color', colorBackground, 'important');
                     tr.style.setProperty('color', '#ffffff', 'important');
+                    tr.style.setProperty('border-radius', '4px', 'important');
+                    tr.style.setProperty('margin-bottom', '4px', 'important');
                     
                     const links = tr.querySelectorAll('a');
-                    links.forEach(l => l.style.setProperty('color', '#ffffff', 'important'));
+                    links.forEach(l => {
+                        l.style.setProperty('color', '#ffffff', 'important');
+                    });
                 }
             }
         });
