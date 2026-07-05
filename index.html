@@ -41,14 +41,25 @@
         }
         @media (max-width: 768px) { #btnToggleMenu { display: flex; } }
 
-        /* Estilo de Bloques Continuos */
-        .fc-event { 
-            cursor: pointer; border: none !important; padding: 4px 8px !important; 
+        /* Estilo de Bloques Continuos y Soporte para Vista de Lista */
+        .fc-event, .fc-list-event-dot { 
+            cursor: pointer; border: none !important; padding: 2px 8px !important; 
             border-radius: 4px !important; margin: 2px 0 !important;
-            font-size: 0.85em; font-weight: 600; color: white !important;
-            height: auto; min-height: 24px; display: flex; align-items: center;
+            font-size: 0.8em; font-weight: 600; color: white !important;
+            height: 24px; display: flex; align-items: center;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
+        
+        /* Asegurar que en la vista de lista también se pinten las barras completas */
+        .fc-list-event.cat-vacaciones { background-color: rgba(40, 167, 69, 0.15) !important; }
+        .fc-list-event.cat-licencia { background-color: rgba(0, 123, 255, 0.15) !important; }
+        .fc-list-event.cat-ausencia { background-color: rgba(220, 53, 69, 0.15) !important; }
+        .fc-list-event.cat-retiro { background-color: rgba(52, 58, 64, 0.15) !important; }
+
+        .fc-list-event.cat-vacaciones .fc-list-event-title strong, .fc-list-event.cat-vacaciones .fc-list-event-title { color: #1e632a !important; }
+        .fc-list-event.cat-licencia .fc-list-event-title strong, .fc-list-event.cat-licencia .fc-list-event-title { color: #004fb3 !important; }
+        .fc-list-event.cat-ausencia .fc-list-event-title strong, .fc-list-event.cat-ausencia .fc-list-event-title { color: #9c1c28 !important; }
+        .fc-list-event.cat-retiro .fc-list-event-title strong, .fc-list-event.cat-retiro .fc-list-event-title { color: #1d2124 !important; }
 
         .sidebar-item { border-left: 5px solid #ccc; padding: 10px; background: white; margin-bottom: 8px; border-radius: 4px; cursor: pointer; border: 1px solid #ddd; font-size: 12px; }
         .cat-vacaciones { background-color: var(--verde) !important; }
@@ -74,14 +85,6 @@
 
         <hr class="my-2">
         
-        <!-- Agregado: Filtro Vista Diaria Específica / Hoy -->
-        <label class="form-label small fw-bold mb-1">📅 Enfoque de Fecha (Filtro Diario)</label>
-        <div class="input-group input-group-sm mb-3">
-            <input type="date" id="dateFocusFilter" class="form-control" onchange="refreshAll()">
-            <button class="btn btn-primary" onclick="setTodayFocus()">Hoy</button>
-            <button class="btn btn-outline-secondary" onclick="clearDateFocus()">X</button>
-        </div>
-
         <!-- Filtro por Empresa en Barra Lateral -->
         <select id="companyFilter" class="form-select form-select-sm mb-2" onchange="refreshAll()">
             <option value="all">🏢 Todas las Empresas</option>
@@ -94,12 +97,17 @@
 
         <input type="text" id="workerSearch" class="form-control form-control-sm mb-2" placeholder="🔍 Buscar por nombre..." onkeyup="refreshAll()">
 
-        <div class="d-flex flex-wrap gap-1 mb-3">
+        <div class="d-flex flex-wrap gap-1 mb-2">
             <button class="btn btn-light border btn-sm flex-fill py-1" onclick="setFilter('all')">Todos</button>
             <button class="btn btn-success btn-sm flex-fill py-1" onclick="setFilter('cat-vacaciones')">V/P</button>
             <button class="btn btn-primary btn-sm flex-fill py-1" onclick="setFilter('cat-licencia')">Lic</button>
             <button class="btn btn-danger btn-sm flex-fill py-1" onclick="setFilter('cat-ausencia')">Aus</button>
             <button class="btn btn-dark btn-sm flex-fill py-1" onclick="setFilter('cat-retiro')">Ret/Atr</button>
+        </div>
+
+        <!-- Nuevo botón para ver un día específico en pantalla completa manteniendo filtros -->
+        <div class="d-grid mb-3">
+            <button class="btn btn-warning btn-sm fw-bold text-dark" onclick="setViewToDayList()">🔎 Ver Ausencias del Día</button>
         </div>
 
         <div id="workerList" style="flex: 1; overflow-y: auto;"></div>
@@ -153,7 +161,7 @@
                         </select>
                     </div>
 
-                    <!-- Nuevo Selector para elegir entre Atraso o Retiro Anticipado -->
+                    <!-- Selector para elegir entre Atraso o Retiro Anticipado -->
                     <div id="divSubtipoRetiro" style="display:none;" class="mb-2">
                         <label class="form-label small">Clasificación</label>
                         <select id="subtipoRetiro" class="form-select">
@@ -223,7 +231,7 @@
             headerToolbar: { 
                 left: 'prev,next today', 
                 center: 'title', 
-                right: 'dayGridMonth,listMonth' 
+                right: 'dayGridMonth,listMonth,listDay' // Agregada la vista 'listDay' en la botonera superior derecha
             },
             eventClick: (info) => openEditModalById(info.event.id)
         });
@@ -238,46 +246,25 @@
 
     function setFilter(f) { currentFilter = f; refreshAll(); }
 
-    // Funciones para controlar el filtro por día enfocado
-    function setTodayFocus() {
-        const hoy = new Date();
-        const offset = hoy.getTimezoneOffset();
-        const hoyCorregido = new Date(hoy.getTime() - (offset * 60 * 1000));
-        document.getElementById('dateFocusFilter').value = hoyCorregido.toISOString().split('T')[0];
-        refreshAll();
-    }
-
-    function clearDateFocus() {
-        document.getElementById('dateFocusFilter').value = '';
-        refreshAll();
+    // Función encargada de cambiar de forma forzada a la vista diaria enfocada
+    function setViewToDayList() {
+        if (calendar) {
+            calendar.changeView('listDay');
+        }
     }
 
     function refreshAll() {
         if (!calendar) return;
         const search = (document.getElementById('workerSearch').value || "").toLowerCase();
         const selectedCompany = document.getElementById('companyFilter').value;
-        const dateFocus = document.getElementById('dateFocusFilter').value; // Formato YYYY-MM-DD
         
-        // Mover la vista del calendario automáticamente si hay un filtro de un día para que se vea directo y grande
-        if(dateFocus) {
-            calendar.gotoDate(dateFocus);
-        }
-
         const filtered = events.filter(e => {
             const mS = (e.pureName || "").toLowerCase().includes(search);
             const mC = (currentFilter === 'all' || e.rawType === currentFilter);
+            // Evaluación: Verifica si coincide la empresa seleccionada o si está en "all"
             const mComp = (selectedCompany === 'all' || e.company === selectedCompany);
             
-            // Validación de rango de fecha activa para el Enfoque Diario
-            let mDate = true;
-            if(dateFocus) {
-                const fStart = e.start;
-                const fEnd = e.realEnd || e.start;
-                // Está vigente si la fecha enfocada es mayor o igual al inicio y menor o igual al fin
-                mDate = (dateFocus >= fStart && dateFocus <= fEnd);
-            }
-            
-            return mS && mC && mComp && mDate;
+            return mS && mC && mComp;
         });
 
         // Lógica de Bloques: Solo un evento por rango de fechas
