@@ -48,19 +48,19 @@
             font-size: 0.85em; font-weight: bold; color: white !important;
             height: auto; min-height: 24px; display: flex; align-items: center;
             box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-            opacity: 1 !important; /* Fuerza colores sólidos sin transparencia */
+            opacity: 1 !important;
         }
 
         .sidebar-item { border-left: 5px solid #ccc; padding: 10px; background: white; margin-bottom: 8px; border-radius: 4px; cursor: pointer; border: 1px solid #ddd; font-size: 12px; }
         
-        /* Colores intensificados para mayor claridad */
         .cat-vacaciones { background-color: var(--verde) !important; }
         .cat-licencia { background-color: var(--azul) !important; }
         .cat-ausencia { background-color: var(--rojo) !important; }
         .cat-retiro { background-color: var(--negro) !important; }
 
-        /* Corrección visual para que las listas de FullCalendar hereden los colores sólidos */
-        .fc-list-event-dot { display: none !important; } /* Oculta el puntito de lista estándar */
+        /* Oculta el puntito y la celda del texto "all-day" de las listas de FullCalendar */
+        .fc-list-event-dot { display: none !important; } 
+        .fc-list-event-time { display: none !important; }
         .fc-list-event { background-color: transparent !important; }
         .fc-list-event-title { font-weight: bold; }
     </style>
@@ -227,15 +227,14 @@
             firstDay: 1,
             height: '100%',
             eventOrder: "title", 
+            displayEventTime: false, // Oculta los tiempos de los eventos en las vistas correspondientes
             
-            // Configuración de nombres personalizados y traducidos en los botones
             views: {
                 dayGridMonth: { buttonText: 'Mes Completo' },
                 listMonth: { buttonText: 'Detalle Mensual' },
                 listDay: { buttonText: 'Detalle Diario' }
             },
             
-            // Reorganización: Todos los botones pasan al lado izquierdo, el título al centro
             headerToolbar: { 
                 left: 'prev,next today | dayGridMonth,listMonth,listDay', 
                 center: 'title', 
@@ -243,18 +242,16 @@
             },
             eventClick: (info) => openEditModalById(info.event.id),
             
-            // Inyección estética para mantener el bloque de color sólido en la vista de Listas
             eventDidMount: function(info) {
                 if (info.view.type.startsWith('list')) {
                     const tr = info.el;
                     const className = info.event.classNames[0];
-                    let colorBackground = '#212529'; // Default negro
+                    let colorBackground = '#212529';
                     
                     if(className === 'cat-vacaciones') colorBackground = 'var(--verde)';
                     if(className === 'cat-licencia') colorBackground = 'var(--azul)';
                     if(className === 'cat-ausencia') colorBackground = 'var(--rojo)';
                     
-                    // Aplicamos el bloque de color sólido directo a la fila del listado
                     tr.style.setProperty('background-color', colorBackground, 'important');
                     tr.style.setProperty('color', '#ffffff', 'important');
                     
