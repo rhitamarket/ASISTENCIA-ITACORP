@@ -59,18 +59,17 @@
         .cat-retiro { background-color: var(--negro) !important; }
 
         /* --- SOLUCIÓN PARA VISTAS DE DETALLE (LISTAS) --- */
-        /* 1. Ocultamos el puntito y la celda original del tiempo */
         .fc-list-event-dot { display: none !important; } 
         .fc-list-event-time { display: none !important; }
         .fc-list-event { background-color: transparent !important; }
         .fc-list-event-title { font-weight: bold; padding: 10px 14px !important; }
 
-        /* 2. Eliminación radical de líneas blancas internas y bordes residuales (Problema de imagen_ff6661.png) */
+        /* Eliminación de líneas blancas internas y bordes residuales */
         .fc-list-event td { border: none !important; background: none !important; }
         .fc-list-event table { border-collapse: collapse !important; border: none !important; }
         .fc-list-table { border: none !important; }
 
-        /* 3. Corrección del efecto Selección/Hover en los enlaces de las listas (Problema de imagen_ff6a25.png) */
+        /* Corrección del efecto Selección/Hover en los enlaces de las listas */
         .fc-list-event:hover td { background-color: transparent !important; }
         .fc-list-event-title a { display: block; width: 100%; text-decoration: none !important; color: #ffffff !important; }
         .fc-list-event-title a:hover { background-color: transparent !important; color: #ffffff !important; }
@@ -172,7 +171,6 @@
                         </select>
                     </div>
 
-                    <!-- Selector para elegir entre Atraso o Retiro Anticipado -->
                     <div id="divSubtipoRetiro" style="display:none;" class="mb-2">
                         <label class="form-label small">Clasificación</label>
                         <select id="subtipoRetiro" class="form-select">
@@ -243,11 +241,12 @@
             views: {
                 dayGridMonth: { buttonText: 'Mes Completo' },
                 listMonth: { buttonText: 'Detalle Mensual' },
+                listWeek: { buttonText: 'Detalle Semanal' }, // Nueva vista agregada
                 listDay: { buttonText: 'Detalle Diario' }
             },
             
             headerToolbar: { 
-                left: 'prev,next today | dayGridMonth,listMonth,listDay', 
+                left: 'prev,next today | dayGridMonth,listMonth,listWeek,listDay', // Botón agregado en la barra superior
                 center: 'title', 
                 right: '' 
             },
