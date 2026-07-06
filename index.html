@@ -13,7 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <style>
-        :root { --verde: #28a745; --azul: #007bff; --rojo: #dc3545; --negro: #343a40; }
+        :root { --verde: #218838; --azul: #0069d9; --rojo: #c82333; --negro: #212529; }
         body { font-family: sans-serif; background: #fff; height: 100vh; margin: 0; overflow: hidden; display: flex; flex-direction: column; }
         .main-wrapper { display: flex; flex: 1; height: 100vh; width: 100vw; position: relative; overflow: hidden; }
 
@@ -41,20 +41,38 @@
         }
         @media (max-width: 768px) { #btnToggleMenu { display: flex; } }
 
-        /* Estilo de Bloques Continuos */
+        /* Estilo de Bloques Continuos Sólidos y Sin Transparencias */
         .fc-event { 
             cursor: pointer; border: none !important; padding: 4px 8px !important; 
             border-radius: 4px !important; margin: 2px 0 !important;
-            font-size: 0.85em; font-weight: 600; color: white !important;
+            font-size: 0.85em; font-weight: bold; color: white !important;
             height: auto; min-height: 24px; display: flex; align-items: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            opacity: 1 !important;
         }
 
         .sidebar-item { border-left: 5px solid #ccc; padding: 10px; background: white; margin-bottom: 8px; border-radius: 4px; cursor: pointer; border: 1px solid #ddd; font-size: 12px; }
+        
         .cat-vacaciones { background-color: var(--verde) !important; }
         .cat-licencia { background-color: var(--azul) !important; }
         .cat-ausencia { background-color: var(--rojo) !important; }
         .cat-retiro { background-color: var(--negro) !important; }
+
+        /* --- SOLUCIÓN PARA VISTAS DE DETALLE (LISTAS) --- */
+        .fc-list-event-dot { display: none !important; } 
+        .fc-list-event-time { display: none !important; }
+        .fc-list-event { background-color: transparent !important; }
+        .fc-list-event-title { font-weight: bold; padding: 10px 14px !important; }
+
+        /* Eliminación de líneas blancas internas y bordes residuales */
+        .fc-list-event td { border: none !important; background: none !important; }
+        .fc-list-event table { border-collapse: collapse !important; border: none !important; }
+        .fc-list-table { border: none !important; }
+
+        /* Corrección del efecto Selección/Hover en los enlaces de las listas */
+        .fc-list-event:hover td { background-color: transparent !important; }
+        .fc-list-event-title a { display: block; width: 100%; text-decoration: none !important; color: #ffffff !important; }
+        .fc-list-event-title a:hover { background-color: transparent !important; color: #ffffff !important; }
     </style>
 </head>
 <body>
@@ -65,16 +83,19 @@
     <div id="sidebar">
         <h5 class="mb-3">Asistencia RRHH v11</h5>
         <div class="d-grid gap-2 mb-3">
-            <button class="btn btn-success btn-sm" onclick="openCreateModal()">+ NUEVO REGISTRO</button>
+            <!-- Botón de nuevo registro oculto por defecto con d-none -->
+            <button id="btnNuevoRegistro" class="btn btn-success btn-sm d-none" onclick="openCreateModal()">+ NUEVO REGISTRO</button>
             <div class="btn-group">
                 <button class="btn btn-outline-dark btn-sm" onclick="exportToExcel()">Excel</button>
                 <button class="btn btn-outline-secondary btn-sm" onclick="toggleFullScreenCalendar()">Pantalla Completa</button>
             </div>
+            <!-- Botón para alternar el acceso de Administrador -->
+            <button id="btnAdminAuth" class="btn btn-outline-danger btn-sm mt-1" onclick="toggleAdminMode()">🔒 Modo Consulta</button>
         </div>
 
         <hr class="my-2">
         
-        <!-- Agregado: Filtro Vista Diaria Específica / Hoy -->
+        <!-- Filtro Vista Diaria Específica / Hoy -->
         <label class="form-label small fw-bold mb-1">📅 Enfoque de Fecha (Filtro Diario)</label>
         <div class="input-group input-group-sm mb-3">
             <input type="date" id="dateFocusFilter" class="form-control" onchange="refreshAll()">
@@ -153,7 +174,6 @@
                         </select>
                     </div>
 
-                    <!-- Nuevo Selector para elegir entre Atraso o Retiro Anticipado -->
                     <div id="divSubtipoRetiro" style="display:none;" class="mb-2">
                         <label class="form-label small">Clasificación</label>
                         <select id="subtipoRetiro" class="form-select">
@@ -183,9 +203,10 @@
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer" id="modalFooterButtons">
+                <!-- Los botones se ocultarán o mostrarán mediante JS según el rol -->
                 <button type="button" class="btn btn-sm btn-danger d-none" id="btnDelete" onclick="deleteEvent()">Eliminar</button>
-                <button type="button" class="btn btn-sm btn-primary" onclick="saveEvent()">Guardar</button>
+                <button type="button" class="btn btn-sm btn-primary" id="btnSave" onclick="saveEvent()">Guardar</button>
             </div>
         </div>
     </div>
@@ -206,6 +227,10 @@
     const db = firebase.database().ref('asistencias');
     let calendar, events = [], currentFilter = 'all';
 
+    // CONFIGURACIÓN DE SEGURIDAD (Cambia 'Admin123' por tu clave deseada)
+    const ADMIN_PASSWORD = "Admin123"; 
+    let isAdmin = false;
+
     function formatToDMY(dateStr) {
         if(!dateStr) return '';
         const parts = dateStr.split('-');
@@ -218,14 +243,44 @@
             locale: 'es',
             firstDay: 1,
             height: '100%',
-            // Volvemos al orden alfabético estándar para bloques continuos
             eventOrder: "title", 
-            headerToolbar: { 
-                left: 'prev,next today', 
-                center: 'title', 
-                right: 'dayGridMonth,listMonth' 
+            displayEventTime: false, 
+            
+            views: {
+                dayGridMonth: { buttonText: 'Mes Completo' },
+                listMonth: { buttonText: 'Detalle Mensual' },
+                dayGridWeek: { buttonText: 'Detalle Semanal' },
+                listDay: { buttonText: 'Detalle Diario' }
             },
-            eventClick: (info) => openEditModalById(info.event.id)
+            
+            headerToolbar: { 
+                left: 'prev,next today | dayGridMonth,listMonth,dayGridWeek,listDay',
+                center: 'title', 
+                right: '' 
+            },
+            eventClick: (info) => openEditModalById(info.event.id),
+            
+            eventDidMount: function(info) {
+                if (info.view.type.startsWith('list')) {
+                    const tr = info.el;
+                    const className = info.event.classNames[0];
+                    let colorBackground = '#212529';
+                    
+                    if(className === 'cat-vacaciones') colorBackground = 'var(--verde)';
+                    if(className === 'cat-licencia') colorBackground = 'var(--azul)';
+                    if(className === 'cat-ausencia') colorBackground = 'var(--rojo)';
+                    
+                    tr.style.setProperty('background-color', colorBackground, 'important');
+                    tr.style.setProperty('color', '#ffffff', 'important');
+                    tr.style.setProperty('border-radius', '4px', 'important');
+                    tr.style.setProperty('margin-bottom', '4px', 'important');
+                    
+                    const links = tr.querySelectorAll('a');
+                    links.forEach(l => {
+                        l.style.setProperty('color', '#ffffff', 'important');
+                    });
+                }
+            }
         });
         calendar.render();
 
@@ -234,11 +289,45 @@
             events = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
             refreshAll();
         });
+        
+        // Ejecutar inicialmente para asegurar el estado correcto de la interfaz
+        applySecurityRestrictions();
     });
+
+    // --- SISTEMA DE CONTROL DE ACCESO ---
+    function toggleAdminMode() {
+        if (!isAdmin) {
+            const pass = prompt("Introduzca la clave de Administrador para habilitar modificaciones:");
+            if (pass === ADMIN_PASSWORD) {
+                isAdmin = true;
+                alert("🔓 Modo Administrador activado. Ya puede editar los registros.");
+            } else if (pass !== null) {
+                alert("❌ Clave incorrecta. Acceso de edición denegado.");
+            }
+        } else {
+            isAdmin = false;
+            alert("🔒 Ha salido del Modo Administrador. Retornando a Modo Consulta.");
+        }
+        applySecurityRestrictions();
+    }
+
+    function applySecurityRestrictions() {
+        const btnNuevo = document.getElementById('btnNuevoRegistro');
+        const btnAuth = document.getElementById('btnAdminAuth');
+        
+        if (isAdmin) {
+            btnNuevo.classList.remove('d-none');
+            btnAuth.innerText = "🔓 Modo Admin";
+            btnAuth.className = "btn btn-success btn-sm mt-1";
+        } else {
+            btnNuevo.classList.add('d-none');
+            btnAuth.innerText = "🔒 Modo Consulta";
+            btnAuth.className = "btn btn-outline-danger btn-sm mt-1";
+        }
+    }
 
     function setFilter(f) { currentFilter = f; refreshAll(); }
 
-    // Funciones para controlar el filtro por día enfocado
     function setTodayFocus() {
         const hoy = new Date();
         const offset = hoy.getTimezoneOffset();
@@ -256,9 +345,8 @@
         if (!calendar) return;
         const search = (document.getElementById('workerSearch').value || "").toLowerCase();
         const selectedCompany = document.getElementById('companyFilter').value;
-        const dateFocus = document.getElementById('dateFocusFilter').value; // Formato YYYY-MM-DD
+        const dateFocus = document.getElementById('dateFocusFilter').value; 
         
-        // Mover la vista del calendario automáticamente si hay un filtro de un día para que se vea directo y grande
         if(dateFocus) {
             calendar.gotoDate(dateFocus);
         }
@@ -268,25 +356,20 @@
             const mC = (currentFilter === 'all' || e.rawType === currentFilter);
             const mComp = (selectedCompany === 'all' || e.company === selectedCompany);
             
-            // Validación de rango de fecha activa para el Enfoque Diario
             let mDate = true;
             if(dateFocus) {
                 const fStart = e.start;
                 const fEnd = e.realEnd || e.start;
-                // Está vigente si la fecha enfocada es mayor o igual al inicio y menor o igual al fin
                 mDate = (dateFocus >= fStart && dateFocus <= fEnd);
             }
             
             return mS && mC && mComp && mDate;
         });
 
-        // Lógica de Bloques: Solo un evento por rango de fechas
         const calendarEvents = filtered.map(e => {
-            // Para que el bloque llegue hasta el final del día, sumamos un día a la fecha fin en FullCalendar
             let endF = new Date((e.realEnd || e.start) + 'T00:00:00');
             endF.setDate(endF.getDate() + 1);
 
-            // Lógica para renderizar letra A (Atraso) o R (Retiro Anticipado) en la barra
             let letraDistintiva = '';
             if (e.rawType === 'cat-retiro') {
                 letraDistintiva = (e.subtipoRetiro === 'Atraso') ? ' [A]' : ' [R]';
@@ -330,9 +413,24 @@
         if (original.distintivo) document.getElementById('vacDistintivo').value = original.distintivo;
         if (original.subtipoRetiro) document.getElementById('subtipoRetiro').value = original.subtipoRetiro;
         
-        document.getElementById('btnDelete').classList.remove('d-none');
-        document.getElementById('modalTitle').innerText = "Editar Registro";
         handleTypeChange();
+
+        // Aplicar bloqueo de inputs y botones si NO es administrador
+        const formElements = document.getElementById('attendanceForm').elements;
+        for (let i = 0; i < formElements.length; i++) {
+            formElements[i].disabled = !isAdmin;
+        }
+
+        if (isAdmin) {
+            document.getElementById('btnDelete').classList.remove('d-none');
+            document.getElementById('btnSave').classList.remove('d-none');
+            document.getElementById('modalTitle').innerText = "Editar Registro";
+        } else {
+            document.getElementById('btnDelete').classList.add('d-none');
+            document.getElementById('btnSave').classList.add('d-none');
+            document.getElementById('modalTitle').innerText = "Detalle del Registro (Solo Lectura)";
+        }
+
         new bootstrap.Modal(document.getElementById('eventModal')).show();
     }
 
@@ -345,18 +443,28 @@
     }
 
     function openCreateModal() {
+        if(!isAdmin) return; // Salvaguarda
         forceCloseSidebar();
         document.getElementById('attendanceForm').reset();
         document.getElementById('editId').value = '';
         document.getElementById('companyName').value = '';
         document.getElementById('subtipoRetiro').value = 'Atraso';
+        
+        // Habilitar campos para la creación
+        const formElements = document.getElementById('attendanceForm').elements;
+        for (let i = 0; i < formElements.length; i++) {
+            formElements[i].disabled = false;
+        }
+
         document.getElementById('btnDelete').classList.add('d-none');
+        document.getElementById('btnSave').classList.remove('d-none');
         document.getElementById('modalTitle').innerText = "Nuevo Registro";
         handleTypeChange();
         new bootstrap.Modal(document.getElementById('eventModal')).show();
     }
 
     function saveEvent() {
+        if(!isAdmin) return;
         const id = document.getElementById('editId').value;
         const type = document.getElementById('regType').value;
         const data = {
@@ -375,6 +483,7 @@
     }
 
     function deleteEvent() {
+        if(!isAdmin) return;
         if(confirm("¿Eliminar definitivamente?")) {
             db.child(document.getElementById('editId').value).remove();
             bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
@@ -396,6 +505,7 @@
         XLSX.writeFile(wb, "Reporte_RRHH.xlsx");
     }
 
+    // ... Las funciones de Pantalla completa y Sidebar se mantienen igual ...
     function toggleFullScreenCalendar() {
         const container = document.getElementById('calendar-container');
         if (!document.fullscreenElement) {
@@ -405,7 +515,6 @@
             document.exitFullscreen();
         }
     }
-
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
     function forceCloseSidebar() { if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('active'); }
 </script>
