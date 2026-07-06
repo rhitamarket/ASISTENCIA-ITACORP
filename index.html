@@ -13,7 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <style>
-        :root { --verde: #218838; --azul: #0069d9; --rojo: #c82333; --negro: #212529; }
+        :root { --verde: #28a745; --azul: #007bff; --rojo: #dc3545; --negro: #343a40; }
         body { font-family: sans-serif; background: #fff; height: 100vh; margin: 0; overflow: hidden; display: flex; flex-direction: column; }
         .main-wrapper { display: flex; flex: 1; height: 100vh; width: 100vw; position: relative; overflow: hidden; }
 
@@ -41,38 +41,20 @@
         }
         @media (max-width: 768px) { #btnToggleMenu { display: flex; } }
 
-        /* Estilo de Bloques Continuos Sólidos y Sin Transparencias */
+        /* Estilo de Bloques Continuos */
         .fc-event { 
             cursor: pointer; border: none !important; padding: 4px 8px !important; 
             border-radius: 4px !important; margin: 2px 0 !important;
-            font-size: 0.85em; font-weight: bold; color: white !important;
+            font-size: 0.85em; font-weight: 600; color: white !important;
             height: auto; min-height: 24px; display: flex; align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-            opacity: 1 !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
         .sidebar-item { border-left: 5px solid #ccc; padding: 10px; background: white; margin-bottom: 8px; border-radius: 4px; cursor: pointer; border: 1px solid #ddd; font-size: 12px; }
-        
         .cat-vacaciones { background-color: var(--verde) !important; }
         .cat-licencia { background-color: var(--azul) !important; }
         .cat-ausencia { background-color: var(--rojo) !important; }
         .cat-retiro { background-color: var(--negro) !important; }
-
-        /* --- SOLUCIÓN PARA VISTAS DE DETALLE (LISTAS) --- */
-        .fc-list-event-dot { display: none !important; } 
-        .fc-list-event-time { display: none !important; }
-        .fc-list-event { background-color: transparent !important; }
-        .fc-list-event-title { font-weight: bold; padding: 10px 14px !important; }
-
-        /* Eliminación de líneas blancas internas y bordes residuales */
-        .fc-list-event td { border: none !important; background: none !important; }
-        .fc-list-event table { border-collapse: collapse !important; border: none !important; }
-        .fc-list-table { border: none !important; }
-
-        /* Corrección del efecto Selección/Hover en los enlaces de las listas */
-        .fc-list-event:hover td { background-color: transparent !important; }
-        .fc-list-event-title a { display: block; width: 100%; text-decoration: none !important; color: #ffffff !important; }
-        .fc-list-event-title a:hover { background-color: transparent !important; color: #ffffff !important; }
     </style>
 </head>
 <body>
@@ -92,7 +74,7 @@
 
         <hr class="my-2">
         
-        <!-- Filtro Vista Diaria Específica / Hoy -->
+        <!-- Agregado: Filtro Vista Diaria Específica / Hoy -->
         <label class="form-label small fw-bold mb-1">📅 Enfoque de Fecha (Filtro Diario)</label>
         <div class="input-group input-group-sm mb-3">
             <input type="date" id="dateFocusFilter" class="form-control" onchange="refreshAll()">
@@ -171,6 +153,7 @@
                         </select>
                     </div>
 
+                    <!-- Nuevo Selector para elegir entre Atraso o Retiro Anticipado -->
                     <div id="divSubtipoRetiro" style="display:none;" class="mb-2">
                         <label class="form-label small">Clasificación</label>
                         <select id="subtipoRetiro" class="form-select">
@@ -235,44 +218,14 @@
             locale: 'es',
             firstDay: 1,
             height: '100%',
+            // Volvemos al orden alfabético estándar para bloques continuos
             eventOrder: "title", 
-            displayEventTime: false, 
-            
-            views: {
-                dayGridMonth: { buttonText: 'Mes Completo' },
-                listMonth: { buttonText: 'Detalle Mensual' },
-                dayGridWeek: { buttonText: 'Detalle Semanal' }, // Cambiado a cuadrícula horizontal de lunes a domingo
-                listDay: { buttonText: 'Detalle Diario' }
-            },
-            
             headerToolbar: { 
-                left: 'prev,next today | dayGridMonth,listMonth,dayGridWeek,listDay',
+                left: 'prev,next today', 
                 center: 'title', 
-                right: '' 
+                right: 'dayGridMonth,listMonth' 
             },
-            eventClick: (info) => openEditModalById(info.event.id),
-            
-            eventDidMount: function(info) {
-                if (info.view.type.startsWith('list')) {
-                    const tr = info.el;
-                    const className = info.event.classNames[0];
-                    let colorBackground = '#212529';
-                    
-                    if(className === 'cat-vacaciones') colorBackground = 'var(--verde)';
-                    if(className === 'cat-licencia') colorBackground = 'var(--azul)';
-                    if(className === 'cat-ausencia') colorBackground = 'var(--rojo)';
-                    
-                    tr.style.setProperty('background-color', colorBackground, 'important');
-                    tr.style.setProperty('color', '#ffffff', 'important');
-                    tr.style.setProperty('border-radius', '4px', 'important');
-                    tr.style.setProperty('margin-bottom', '4px', 'important');
-                    
-                    const links = tr.querySelectorAll('a');
-                    links.forEach(l => {
-                        l.style.setProperty('color', '#ffffff', 'important');
-                    });
-                }
-            }
+            eventClick: (info) => openEditModalById(info.event.id)
         });
         calendar.render();
 
@@ -285,6 +238,7 @@
 
     function setFilter(f) { currentFilter = f; refreshAll(); }
 
+    // Funciones para controlar el filtro por día enfocado
     function setTodayFocus() {
         const hoy = new Date();
         const offset = hoy.getTimezoneOffset();
@@ -302,8 +256,9 @@
         if (!calendar) return;
         const search = (document.getElementById('workerSearch').value || "").toLowerCase();
         const selectedCompany = document.getElementById('companyFilter').value;
-        const dateFocus = document.getElementById('dateFocusFilter').value; 
+        const dateFocus = document.getElementById('dateFocusFilter').value; // Formato YYYY-MM-DD
         
+        // Mover la vista del calendario automáticamente si hay un filtro de un día para que se vea directo y grande
         if(dateFocus) {
             calendar.gotoDate(dateFocus);
         }
@@ -313,20 +268,25 @@
             const mC = (currentFilter === 'all' || e.rawType === currentFilter);
             const mComp = (selectedCompany === 'all' || e.company === selectedCompany);
             
+            // Validación de rango de fecha activa para el Enfoque Diario
             let mDate = true;
             if(dateFocus) {
                 const fStart = e.start;
                 const fEnd = e.realEnd || e.start;
+                // Está vigente si la fecha enfocada es mayor o igual al inicio y menor o igual al fin
                 mDate = (dateFocus >= fStart && dateFocus <= fEnd);
             }
             
             return mS && mC && mComp && mDate;
         });
 
+        // Lógica de Bloques: Solo un evento por rango de fechas
         const calendarEvents = filtered.map(e => {
+            // Para que el bloque llegue hasta el final del día, sumamos un día a la fecha fin en FullCalendar
             let endF = new Date((e.realEnd || e.start) + 'T00:00:00');
             endF.setDate(endF.getDate() + 1);
 
+            // Lógica para renderizar letra A (Atraso) o R (Retiro Anticipado) en la barra
             let letraDistintiva = '';
             if (e.rawType === 'cat-retiro') {
                 letraDistintiva = (e.subtipoRetiro === 'Atraso') ? ' [A]' : ' [R]';
