@@ -12,6 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
+    <!-- Fuente Manuscrita desde Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;600&display=swap" rel="stylesheet">
@@ -21,14 +22,7 @@
         body { font-family: sans-serif; background: #fff; height: 100vh; margin: 0; overflow: hidden; display: flex; flex-direction: column; }
         
         .main-wrapper { 
-            display: flex; 
-            flex-direction: row; 
-            flex: 1; 
-            height: 100vh; 
-            width: 100vw; 
-            position: relative; 
-            overflow: hidden; 
-            background: white;
+            display: flex; flex: 1; height: 100vh; width: 100vw; position: relative; overflow: hidden; background: white;
         }
 
         #sidebar { 
@@ -37,7 +31,7 @@
             flex-shrink: 0; z-index: 2000; transition: all 0.3s ease; 
         }
 
-        #calendar-container { flex-grow: 1; position: relative; background: white; overflow: hidden; display: flex; flex-direction: column; }
+        #calendar-container { flex-grow: 1; position: relative; background: white; overflow: hidden; display: flex; flex-direction: column; padding: 10px; }
         #calendar { flex-grow: 1; }
 
         @media (max-width: 768px) {
@@ -92,6 +86,14 @@
         }
         .btn-clear-search:hover { color: #333; }
 
+        /* --- CONTENEDOR DE FILTROS EN CABECERA DEL CALENDARIO --- */
+        .fc-toolbar-chunk {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
         /* --- MARCA DE AUTOR EN BARRA LATERAL --- */
         .dev-credits-sidebar {
             font-family: 'Dancing Script', cursive;
@@ -102,64 +104,14 @@
             padding-top: 10px;
             border-top: 1px dashed #ddd;
         }
-
-        /* --- BARRA SUPERIOR EXCLUSIVA PARA PANTALLA COMPLETA --- */
-        #fullscreen-toolbar {
-            display: none; /* Oculta normalmente */
-            background: #f8f9fa;
-            border-bottom: 1px solid #ddd;
-            padding: 8px 15px;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-            z-index: 2500;
-        }
-
-        /* Regla CSS cuando se activa la Pantalla Completa */
-        :fullscreen #fullscreen-toolbar,
-        :-webkit-full-screen #fullscreen-toolbar {
-            display: flex !important; /* Aparece en Pantalla Completa */
-        }
-
-        :fullscreen #sidebar,
-        :-webkit-full-screen #sidebar {
-            display: none !important; /* Oculta la barra lateral para maximizar espacio */
-        }
     </style>
 </head>
 <body>
 
 <button id="btnToggleMenu" class="btn btn-primary" onclick="toggleSidebar()">☰</button>
 
-<div class="main-wrapper" id="mainWrapper">
-    <div id="fullscreen-toolbar">
-        <select id="companyFilterFS" class="form-select form-select-sm" style="max-width: 200px;" onchange="syncCompanyFilter(this.value)">
-            <option value="all">🏢 Todas las Empresas</option>
-            <option value="Itamarket EIRL">Itamarket EIRL</option>
-            <option value="Kapgroup SpA">Kapgroup SpA</option>
-            <option value="Itamarket SPA">Itamarket SPA</option>
-            <option value="Inv. Itahydraulic SpA">Inv. Itahydraulic SpA</option>
-            <option value="Fluid Supply Spa">Fluid Supply Spa</option>
-        </select>
-
-        <div class="search-container" style="min-width: 200px;">
-            <input type="text" id="workerSearchFS" class="form-control form-control-sm" placeholder="🔍 Buscar trabajador..." onkeyup="syncSearchInput(this, event)">
-            <button type="button" id="btnClearSearchFS" class="btn-clear-search" onclick="clearWorkerSearchFS()" title="Borrar búsqueda">✕</button>
-        </div>
-
-        <div class="btn-group btn-group-sm">
-            <button class="btn btn-outline-secondary" onclick="setFilter('all')">Todos</button>
-            <button class="btn btn-success" onclick="setFilter('cat-vacaciones')">V/P</button>
-            <button class="btn btn-primary" onclick="setFilter('cat-licencia')">Lic</button>
-            <button class="btn btn-danger" onclick="setFilter('cat-ausencia')">Aus</button>
-            <button class="btn btn-dark" onclick="setFilter('cat-retiro')">Ret/Atr</button>
-        </div>
-
-        <button class="btn btn-sm btn-outline-danger ms-auto" onclick="toggleFullScreenCalendar()">
-            ✖ Salir de Pantalla Completa
-        </button>
-    </div>
-
+<div class="main-wrapper">
+    <!-- Barra Lateral (Modo Normal) -->
     <div id="sidebar">
         <h5 class="mb-3">Asistencia RRHH v11</h5>
         <div class="d-grid gap-2 mb-3">
@@ -173,33 +125,12 @@
 
         <hr class="my-2">
         
+        <!-- Filtro Vista Diaria Específica / Hoy -->
         <label class="form-label small fw-bold mb-1">📅 Enfoque de Fecha (Filtro Diario)</label>
         <div class="input-group input-group-sm mb-3">
             <input type="date" id="dateFocusFilter" class="form-control" onchange="refreshAll()">
             <button class="btn btn-primary" onclick="setTodayFocus()">Hoy</button>
             <button class="btn btn-outline-secondary" onclick="clearDateFocus()">X</button>
-        </div>
-
-        <select id="companyFilter" class="form-select form-select-sm mb-2" onchange="syncCompanyFilter(this.value)">
-            <option value="all">🏢 Todas las Empresas</option>
-            <option value="Itamarket EIRL">Itamarket EIRL</option>
-            <option value="Kapgroup SpA">Kapgroup SpA</option>
-            <option value="Itamarket SPA">Itamarket SPA</option>
-            <option value="Inv. Itahydraulic SpA">Inv. Itahydraulic SpA</option>
-            <option value="Fluid Supply Spa">Fluid Supply Spa</option>
-        </select>
-
-        <div class="search-container mb-2">
-            <input type="text" id="workerSearch" class="form-control form-control-sm" placeholder="🔍 Buscar por nombre..." onkeyup="syncSearchInput(this, event)">
-            <button type="button" id="btnClearSearch" class="btn-clear-search" onclick="clearWorkerSearch()" title="Borrar búsqueda">✕</button>
-        </div>
-
-        <div class="d-flex flex-wrap gap-1 mb-3">
-            <button class="btn btn-light border btn-sm flex-fill py-1" onclick="setFilter('all')">Todos</button>
-            <button class="btn btn-success btn-sm flex-fill py-1" onclick="setFilter('cat-vacaciones')">V/P</button>
-            <button class="btn btn-primary btn-sm flex-fill py-1" onclick="setFilter('cat-licencia')">Lic</button>
-            <button class="btn btn-danger btn-sm flex-fill py-1" onclick="setFilter('cat-ausencia')">Aus</button>
-            <button class="btn btn-dark btn-sm flex-fill py-1" onclick="setFilter('cat-retiro')">Ret/Atr</button>
         </div>
 
         <div id="workerList" style="flex: 1; overflow-y: auto;"></div>
@@ -209,11 +140,13 @@
         </div>
     </div>
 
+    <!-- Contenedor Principal del Calendario -->
     <div id="calendar-container">
         <div id="calendar"></div>
     </div>
 </div>
 
+<!-- Modal Formulario -->
 <div class="modal fade" id="eventModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -329,17 +262,35 @@
             displayEventTime: false, 
             
             views: {
-                dayGridMonth: { buttonText: 'Mes Completo' },
-                listMonth: { buttonText: 'Detalle Mensual' },
-                dayGridWeek: { buttonText: 'Detalle Semanal' },
-                listDay: { buttonText: 'Detalle Diario' }
+                dayGridMonth: { buttonText: 'Mes' },
+                listMonth: { buttonText: 'Lista Mes' },
+                dayGridWeek: { buttonText: 'Semana' },
+                listDay: { buttonText: 'Día' }
             },
             
+            // CONFIGURACIÓN DE CABECERA: Filtros al lado derecho del Título
             headerToolbar: { 
                 left: 'prev,next today | dayGridMonth,listMonth,dayGridWeek,listDay',
                 center: 'title', 
-                right: '' 
+                right: 'companyFilterSelect workerSearchInput categoryButtons' 
             },
+
+            // CUSTOM BUTTONS IMPLEMENTA CONTROLES HTML DIRECTAMENTE EN LA CABECERA
+            customButtons: {
+                companyFilterSelect: {
+                    text: '',
+                    click: function() {}
+                },
+                workerSearchInput: {
+                    text: '',
+                    click: function() {}
+                },
+                categoryButtons: {
+                    text: '',
+                    click: function() {}
+                }
+            },
+
             eventClick: (info) => openEditModalById(info.event.id),
             
             eventDidMount: function(info) {
@@ -364,7 +315,11 @@
                 }
             }
         });
+
         calendar.render();
+
+        // INSERCIÓN DE FILTROS EN LA CABECERA
+        renderHeaderFilters();
 
         db.on('value', (snapshot) => {
             const data = snapshot.val();
@@ -375,42 +330,72 @@
         applySecurityRestrictions();
     });
 
-    // --- FUNCIONES DE SINCRONIZACIÓN DE FILTROS ENTRE VISTA NORMAL Y PANTALLA COMPLETA ---
-    function syncSearchInput(sourceInput, e) {
-        const val = sourceInput.value;
-        document.getElementById('workerSearch').value = val;
-        document.getElementById('workerSearchFS').value = val;
+    // INSERCIÓN DINÁMICA DE ELEMENTOS DE FILTRO EN LA CABECERA SUPERIOR DERECHA
+    function renderHeaderFilters() {
+        const btnCompany = document.querySelector('.fc-companyFilterSelect-button');
+        const btnSearch = document.querySelector('.fc-workerSearchInput-button');
+        const btnCategories = document.querySelector('.fc-categoryButtons-button');
 
+        if(btnCompany) {
+            btnCompany.outerHTML = `
+                <select id="companyFilter" class="form-select form-select-sm" style="width: 170px;" onchange="refreshAll()">
+                    <option value="all">🏢 Empresas</option>
+                    <option value="Itamarket EIRL">Itamarket EIRL</option>
+                    <option value="Kapgroup SpA">Kapgroup SpA</option>
+                    <option value="Itamarket SPA">Itamarket SPA</option>
+                    <option value="Inv. Itahydraulic SpA">Inv. Itahydraulic SpA</option>
+                    <option value="Fluid Supply Spa">Fluid Supply Spa</option>
+                </select>
+            `;
+        }
+
+        if(btnSearch) {
+            btnSearch.outerHTML = `
+                <div class="search-container" style="width: 170px;">
+                    <input type="text" id="workerSearch" class="form-control form-control-sm" placeholder="🔍 Buscar..." onkeyup="handleSearchInput(event)">
+                    <button type="button" id="btnClearSearch" class="btn-clear-search" onclick="clearWorkerSearch()" title="Borrar búsqueda">✕</button>
+                </div>
+            `;
+        }
+
+        if(btnCategories) {
+            btnCategories.outerHTML = `
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary py-1" onclick="setFilter('all')">Todos</button>
+                    <button class="btn btn-success py-1" onclick="setFilter('cat-vacaciones')">V/P</button>
+                    <button class="btn btn-primary py-1" onclick="setFilter('cat-licencia')">Lic</button>
+                    <button class="btn btn-danger py-1" onclick="setFilter('cat-ausencia')">Aus</button>
+                    <button class="btn btn-dark py-1" onclick="setFilter('cat-retiro')">Ret/Atr</button>
+                </div>
+            `;
+        }
+    }
+
+    // MANEJO DE BÚSQUEDA Y BOTÓN DE BORRADO '✕'
+    function handleSearchInput(e) {
+        const input = document.getElementById('workerSearch');
         const btnClear = document.getElementById('btnClearSearch');
-        const btnClearFS = document.getElementById('btnClearSearchFS');
 
         if (e && e.key === 'Escape') {
             clearWorkerSearch();
             return;
         }
 
-        const displayState = val.length > 0 ? 'block' : 'none';
-        if (btnClear) btnClear.style.display = displayState;
-        if (btnClearFS) btnClearFS.style.display = displayState;
+        if (input.value.length > 0) {
+            btnClear.style.display = 'block';
+        } else {
+            btnClear.style.display = 'none';
+        }
 
         refreshAll();
     }
 
     function clearWorkerSearch() {
-        document.getElementById('workerSearch').value = '';
-        document.getElementById('workerSearchFS').value = '';
-        document.getElementById('btnClearSearch').style.display = 'none';
-        document.getElementById('btnClearSearchFS').style.display = 'none';
-        refreshAll();
-    }
-
-    function clearWorkerSearchFS() {
-        clearWorkerSearch();
-    }
-
-    function syncCompanyFilter(val) {
-        document.getElementById('companyFilter').value = val;
-        document.getElementById('companyFilterFS').value = val;
+        const input = document.getElementById('workerSearch');
+        const btnClear = document.getElementById('btnClearSearch');
+        input.value = '';
+        btnClear.style.display = 'none';
+        input.focus();
         refreshAll();
     }
 
@@ -462,8 +447,11 @@
 
     function refreshAll() {
         if (!calendar) return;
-        const search = (document.getElementById('workerSearch').value || "").toLowerCase();
-        const selectedCompany = document.getElementById('companyFilter').value;
+        const searchInput = document.getElementById('workerSearch');
+        const companyInput = document.getElementById('companyFilter');
+        
+        const search = searchInput ? searchInput.value.toLowerCase() : "";
+        const selectedCompany = companyInput ? companyInput.value : "all";
         const dateFocus = document.getElementById('dateFocusFilter').value; 
         
         if(dateFocus) {
@@ -509,12 +497,14 @@
         calendar.addEventSource(calendarEvents);
 
         const list = document.getElementById('workerList');
-        list.innerHTML = '';
-        filtered.sort((a,b) => a.pureName.localeCompare(b.pureName)).forEach(ev => {
-            list.innerHTML += `<div class="sidebar-item" onclick="openEditModalById('${ev.id}')">
-                <strong>${ev.pureName}</strong><br>
-                <small>${formatToDMY(ev.start)} al ${formatToDMY(ev.realEnd || ev.start)}</small></div>`;
-        });
+        if(list) {
+            list.innerHTML = '';
+            filtered.sort((a,b) => a.pureName.localeCompare(b.pureName)).forEach(ev => {
+                list.innerHTML += `<div class="sidebar-item" onclick="openEditModalById('${ev.id}')">
+                    <strong>${ev.pureName}</strong><br>
+                    <small>${formatToDMY(ev.start)} al ${formatToDMY(ev.realEnd || ev.start)}</small></div>`;
+            });
+        }
     }
 
     function openEditModalById(id) {
@@ -623,10 +613,10 @@
     }
 
     function toggleFullScreenCalendar() {
-        const wrapper = document.getElementById('mainWrapper');
+        const container = document.getElementById('calendar-container');
         if (!document.fullscreenElement) {
-            if (wrapper.requestFullscreen) wrapper.requestFullscreen();
-            else if (wrapper.webkitRequestFullscreen) wrapper.webkitRequestFullscreen();
+            if (container.requestFullscreen) container.requestFullscreen();
+            else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
         } else {
             if (document.exitFullscreen) document.exitFullscreen();
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
