@@ -12,7 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Fuente Manuscrita y Curva desde Google Fonts -->
+    <!-- Fuente Manuscrita desde Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;600&display=swap" rel="stylesheet">
@@ -79,20 +79,15 @@
         .fc-list-event-title a { display: block; width: 100%; text-decoration: none !important; color: #ffffff !important; }
         .fc-list-event-title a:hover { background-color: transparent !important; color: #ffffff !important; }
 
-        /* --- MARCA DE AUTOR CON ESTILO MANUSCRITO Y CURVO --- */
-        .dev-credits {
-            position: absolute;
-            bottom: 6px;
-            right: 14px;
+        /* --- MARCA DE AUTOR EN BARRA LATERAL (IZQUIERDA ABAJO) --- */
+        .dev-credits-sidebar {
             font-family: 'Dancing Script', cursive;
             font-size: 0.95rem;
             color: #666666;
-            z-index: 1000;
-            pointer-events: none;
-            background: rgba(255, 255, 255, 0.85);
-            padding: 1px 8px;
-            border-radius: 4px;
-            letter-spacing: 0.5px;
+            text-align: center;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px dashed #ddd;
         }
     </style>
 </head>
@@ -143,12 +138,15 @@
         </div>
 
         <div id="workerList" style="flex: 1; overflow-y: auto;"></div>
+
+        <!-- Firma manuscrita en la parte inferior de la barra lateral -->
+        <div class="dev-credits-sidebar">
+            Desarrollado por Oscar Caro Yañez - Mayo 2026
+        </div>
     </div>
 
     <div id="calendar-container">
         <div id="calendar"></div>
-        <!-- Firma manuscrita en la esquina inferior derecha -->
-        <div class="dev-credits">Desarrollado por Oscar Caro Yañez - Mayo 2026</div>
     </div>
 </div>
 
