@@ -73,6 +73,22 @@
         .fc-list-event:hover td { background-color: transparent !important; }
         .fc-list-event-title a { display: block; width: 100%; text-decoration: none !important; color: #ffffff !important; }
         .fc-list-event-title a:hover { background-color: transparent !important; color: #ffffff !important; }
+
+        /* --- MARCA DE AUTOR / FIRMA SUTIL --- */
+        .dev-credits {
+            position: absolute;
+            bottom: 6px;
+            right: 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.72rem;
+            color: #888888;
+            font-style: italic;
+            z-index: 1000;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
@@ -83,13 +99,11 @@
     <div id="sidebar">
         <h5 class="mb-3">Asistencia RRHH v11</h5>
         <div class="d-grid gap-2 mb-3">
-            <!-- Botón de nuevo registro oculto por defecto con d-none -->
             <button id="btnNuevoRegistro" class="btn btn-success btn-sm d-none" onclick="openCreateModal()">+ NUEVO REGISTRO</button>
             <div class="btn-group">
                 <button class="btn btn-outline-dark btn-sm" onclick="exportToExcel()">Excel</button>
                 <button class="btn btn-outline-secondary btn-sm" onclick="toggleFullScreenCalendar()">Pantalla Completa</button>
             </div>
-            <!-- Botón para alternar el acceso de Administrador -->
             <button id="btnAdminAuth" class="btn btn-outline-danger btn-sm mt-1" onclick="toggleAdminMode()">🔒 Modo Consulta</button>
         </div>
 
@@ -128,6 +142,8 @@
 
     <div id="calendar-container">
         <div id="calendar"></div>
+        <!-- Firma sutil en la esquina inferior derecha -->
+        <div class="dev-credits">Desarrollado por Oscar Caro Yañez - Mayo 2026</div>
     </div>
 </div>
 
@@ -204,7 +220,6 @@
                 </form>
             </div>
             <div class="modal-footer" id="modalFooterButtons">
-                <!-- Los botones se ocultarán o mostrarán mediante JS según el rol -->
                 <button type="button" class="btn btn-sm btn-danger d-none" id="btnDelete" onclick="deleteEvent()">Eliminar</button>
                 <button type="button" class="btn btn-sm btn-primary" id="btnSave" onclick="saveEvent()">Guardar</button>
             </div>
@@ -227,7 +242,7 @@
     const db = firebase.database().ref('asistencias');
     let calendar, events = [], currentFilter = 'all';
 
-    // CONFIGURACIÓN DE SEGURIDAD (Cambia 'Admin123' por tu clave deseada)
+    // CONFIGURACIÓN DE SEGURIDAD
     const ADMIN_PASSWORD = "Admin123"; 
     let isAdmin = false;
 
@@ -290,11 +305,9 @@
             refreshAll();
         });
         
-        // Ejecutar inicialmente para asegurar el estado correcto de la interfaz
         applySecurityRestrictions();
     });
 
-    // --- SISTEMA DE CONTROL DE ACCESO ---
     function toggleAdminMode() {
         if (!isAdmin) {
             const pass = prompt("Introduzca la clave de Administrador para habilitar modificaciones:");
@@ -415,7 +428,6 @@
         
         handleTypeChange();
 
-        // Aplicar bloqueo de inputs y botones si NO es administrador
         const formElements = document.getElementById('attendanceForm').elements;
         for (let i = 0; i < formElements.length; i++) {
             formElements[i].disabled = !isAdmin;
@@ -443,14 +455,13 @@
     }
 
     function openCreateModal() {
-        if(!isAdmin) return; // Salvaguarda
+        if(!isAdmin) return;
         forceCloseSidebar();
         document.getElementById('attendanceForm').reset();
         document.getElementById('editId').value = '';
         document.getElementById('companyName').value = '';
         document.getElementById('subtipoRetiro').value = 'Atraso';
         
-        // Habilitar campos para la creación
         const formElements = document.getElementById('attendanceForm').elements;
         for (let i = 0; i < formElements.length; i++) {
             formElements[i].disabled = false;
@@ -505,7 +516,6 @@
         XLSX.writeFile(wb, "Reporte_RRHH.xlsx");
     }
 
-    // ... Las funciones de Pantalla completa y Sidebar se mantienen igual ...
     function toggleFullScreenCalendar() {
         const container = document.getElementById('calendar-container');
         if (!document.fullscreenElement) {
@@ -515,6 +525,7 @@
             document.exitFullscreen();
         }
     }
+
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
     function forceCloseSidebar() { if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('active'); }
 </script>
