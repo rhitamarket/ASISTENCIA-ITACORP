@@ -12,6 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
+    <!-- Fuente Manuscrita desde Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;600&display=swap" rel="stylesheet">
@@ -72,6 +73,18 @@
         .fc-list-event-title a { display: block; width: 100%; text-decoration: none !important; color: #ffffff !important; }
         .fc-list-event-title a:hover { background-color: transparent !important; color: #ffffff !important; }
 
+        /* Estilo sutil para las observaciones añadidas en la vista de lista */
+        .fc-list-comment-span {
+            font-weight: normal;
+            font-style: italic;
+            opacity: 0.9;
+            margin-left: 10px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+
         /* --- ESTILO PARA EL BOTÓN LIMPIAR BÚSQUEDA --- */
         .search-container { position: relative; }
         .search-container input { padding-right: 32px; }
@@ -83,21 +96,12 @@
         .btn-clear-search:hover { color: #333; }
 
         /* --- CONTROL DE LOS FILTROS DE LA CABECERA --- */
-        /* Por defecto, los filtros dentro de la cabecera del calendario están ocultos */
-        .header-fs-filter {
-            display: none !important;
-        }
+        .header-fs-filter { display: none !important; }
 
         /* CUANDO EL CONTENEDOR ENTRA EN PANTALLA COMPLETA: */
-        /* 1. Mostramos los filtros insertados al lado del mes */
-        #calendar-container:fullscreen .header-fs-filter {
-            display: block !important;
-        }
-        #calendar-container:-webkit-full-screen .header-fs-filter {
-            display: block !important;
-        }
+        #calendar-container:fullscreen .header-fs-filter { display: block !important; }
+        #calendar-container:-webkit-full-screen .header-fs-filter { display: block !important; }
 
-        /* 2. Le damos una distribución flexible al contenedor de los filtros de cabecera */
         .fc-toolbar-chunk {
             display: flex;
             align-items: center;
@@ -122,6 +126,7 @@
 <button id="btnToggleMenu" class="btn btn-primary" onclick="toggleSidebar()">☰</button>
 
 <div class="main-wrapper" id="mainWrapper">
+    <!-- Barra Lateral (VISTA NORMAL ORIGINAL MANTENIDA) -->
     <div id="sidebar">
         <h5 class="mb-3">Asistencia RRHH v11</h5>
         <div class="d-grid gap-2 mb-3">
@@ -135,6 +140,7 @@
 
         <hr class="my-2">
         
+        <!-- Filtro Vista Diaria Específica / Hoy -->
         <label class="form-label small fw-bold mb-1">📅 Enfoque de Fecha (Filtro Diario)</label>
         <div class="input-group input-group-sm mb-3">
             <input type="date" id="dateFocusFilter" class="form-control" onchange="refreshAll()">
@@ -142,6 +148,7 @@
             <button class="btn btn-outline-secondary" onclick="clearDateFocus()">X</button>
         </div>
 
+        <!-- Filtro por Empresa (Original Lateral) -->
         <select id="companyFilter" class="form-select form-select-sm mb-2" onchange="syncCompanyFilter(this.value, 'side')">
             <option value="all">🏢 Todas las Empresas</option>
             <option value="Itamarket EIRL">Itamarket EIRL</option>
@@ -151,11 +158,13 @@
             <option value="Fluid Supply Spa">Fluid Supply Spa</option>
         </select>
 
+        <!-- Campo de Búsqueda (Original Lateral) -->
         <div class="search-container mb-2">
             <input type="text" id="workerSearch" class="form-control form-control-sm" placeholder="🔍 Buscar por nombre..." onkeyup="syncSearchInput(this, event, 'side')">
             <button type="button" id="btnClearSearch" class="btn-clear-search" onclick="clearWorkerSearch()" title="Borrar búsqueda">✕</button>
         </div>
 
+        <!-- Filtro por Categorías (Original Lateral) -->
         <div class="d-flex flex-wrap gap-1 mb-3">
             <button class="btn btn-light border btn-sm flex-fill py-1" onclick="setFilter('all')">Todos</button>
             <button class="btn btn-success btn-sm flex-fill py-1" onclick="setFilter('cat-vacaciones')">V/P</button>
@@ -171,11 +180,13 @@
         </div>
     </div>
 
+    <!-- Contenedor del Calendario -->
     <div id="calendar-container">
         <div id="calendar"></div>
     </div>
 </div>
 
+<!-- Modal Formulario -->
 <div class="modal fade" id="eventModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -302,7 +313,6 @@
                 right: 'companyFilterSelect workerSearchInput categoryButtons' 
             },
 
-            // Marcadores de posición inyectados de forma nativa en la barra superior
             customButtons: {
                 companyFilterSelect: { text: '', click: function() {} },
                 workerSearchInput: { text: '', click: function() {} },
@@ -312,6 +322,7 @@
             eventClick: (info) => openEditModalById(info.event.id),
             
             eventDidMount: function(info) {
+                // SI ESTAMOS EN UNA VISTA DE LISTA (listMonth o listDay)
                 if (info.view.type.startsWith('list')) {
                     const tr = info.el;
                     const className = info.event.classNames[0];
@@ -330,13 +341,26 @@
                     links.forEach(l => {
                         l.style.setProperty('color', '#ffffff', 'important');
                     });
+
+                    // INYECCIÓN DEL COMENTARIO / OBSERVACIÓN AL LADO DEL NOMBRE
+                    const props = info.event.extendedProps;
+                    if (props && props.comment && props.comment.trim() !== '') {
+                        const titleCell = tr.querySelector('.fc-list-event-title a');
+                        if (titleCell) {
+                            // Validamos si ya se agregó para evitar duplicados en re-renderizados
+                            if (!titleCell.querySelector('.fc-list-comment-span')) {
+                                const commentSpan = document.createElement('span');
+                                commentSpan.className = 'fc-list-comment-span';
+                                commentSpan.innerText = `— Obs: ${props.comment}`;
+                                titleCell.appendChild(commentSpan);
+                            }
+                        }
+                    }
                 }
             }
         });
 
         calendar.render();
-
-        // Inyección de filtros con clase "header-fs-filter" (Ocultos por defecto, visibles en FS)
         renderHeaderFilters();
 
         db.on('value', (snapshot) => {
@@ -394,7 +418,6 @@
         }
     }
 
-    // --- MANEJO Y SINCRONIZACIÓN AUTOMÁTICA DE INPUTS ---
     function syncSearchInput(element, e, origin) {
         const val = element.value;
         const sideInput = document.getElementById('workerSearch');
@@ -415,11 +438,6 @@
         if(btnClearFS) btnClearFS.style.display = displayState;
 
         refreshAll();
-    }
-
-    function handleSearchInput(e) {
-        // Mantenida por retrocompatibilidad estructural interna
-        syncSearchInput(document.getElementById('workerSearch'), e, 'side');
     }
 
     function clearWorkerSearch() {
@@ -479,6 +497,7 @@
 
     function setFilter(f) { currentFilter = f; refreshAll(); }
 
+    // Corregido el desfase de zona horaria al presionar "Hoy"
     function setTodayFocus() {
         const hoy = new Date();
         const offset = hoy.getTimezoneOffset();
@@ -536,7 +555,7 @@
                 end: endF.toISOString().split('T')[0],
                 allDay: true,
                 className: [e.rawType],
-                extendedProps: { ...e }
+                extendedProps: { ...e } // Pasa todas las propiedades originales (incluyendo comment)
             };
         });
 
