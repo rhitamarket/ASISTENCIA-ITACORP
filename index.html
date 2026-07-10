@@ -12,7 +12,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Fuente Manuscrita desde Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;600&display=swap" rel="stylesheet">
@@ -20,10 +19,7 @@
     <style>
         :root { --verde: #218838; --azul: #0069d9; --rojo: #c82333; --negro: #212529; }
         body { font-family: sans-serif; background: #fff; height: 100vh; margin: 0; overflow: hidden; display: flex; flex-direction: column; }
-        
-        .main-wrapper { 
-            display: flex; flex: 1; height: 100vh; width: 100vw; position: relative; overflow: hidden; background: white;
-        }
+        .main-wrapper { display: flex; flex: 1; height: 100vh; width: 100vw; position: relative; overflow: hidden; }
 
         #sidebar { 
             width: 320px; background: #f8f9fa; border-right: 1px solid #ddd; 
@@ -47,7 +43,7 @@
         }
         @media (max-width: 768px) { #btnToggleMenu { display: flex; } }
 
-        /* Estilo de Bloques Continuos Sólidos */
+        /* Estilo de Bloques Continuos Sólidos y Sin Transparencias */
         .fc-event { 
             cursor: pointer; border: none !important; padding: 4px 8px !important; 
             border-radius: 4px !important; margin: 2px 0 !important;
@@ -86,7 +82,22 @@
         }
         .btn-clear-search:hover { color: #333; }
 
-        /* --- CONTENEDOR DE FILTROS EN CABECERA DEL CALENDARIO --- */
+        /* --- CONTROL DE LOS FILTROS DE LA CABECERA --- */
+        /* Por defecto, los filtros dentro de la cabecera del calendario están ocultos */
+        .header-fs-filter {
+            display: none !important;
+        }
+
+        /* CUANDO EL CONTENEDOR ENTRA EN PANTALLA COMPLETA: */
+        /* 1. Mostramos los filtros insertados al lado del mes */
+        #calendar-container:fullscreen .header-fs-filter {
+            display: block !important;
+        }
+        #calendar-container:-webkit-full-screen .header-fs-filter {
+            display: block !important;
+        }
+
+        /* 2. Le damos una distribución flexible al contenedor de los filtros de cabecera */
         .fc-toolbar-chunk {
             display: flex;
             align-items: center;
@@ -110,8 +121,7 @@
 
 <button id="btnToggleMenu" class="btn btn-primary" onclick="toggleSidebar()">☰</button>
 
-<div class="main-wrapper">
-    <!-- Barra Lateral (Modo Normal) -->
+<div class="main-wrapper" id="mainWrapper">
     <div id="sidebar">
         <h5 class="mb-3">Asistencia RRHH v11</h5>
         <div class="d-grid gap-2 mb-3">
@@ -125,12 +135,33 @@
 
         <hr class="my-2">
         
-        <!-- Filtro Vista Diaria Específica / Hoy -->
         <label class="form-label small fw-bold mb-1">📅 Enfoque de Fecha (Filtro Diario)</label>
         <div class="input-group input-group-sm mb-3">
             <input type="date" id="dateFocusFilter" class="form-control" onchange="refreshAll()">
             <button class="btn btn-primary" onclick="setTodayFocus()">Hoy</button>
             <button class="btn btn-outline-secondary" onclick="clearDateFocus()">X</button>
+        </div>
+
+        <select id="companyFilter" class="form-select form-select-sm mb-2" onchange="syncCompanyFilter(this.value, 'side')">
+            <option value="all">🏢 Todas las Empresas</option>
+            <option value="Itamarket EIRL">Itamarket EIRL</option>
+            <option value="Kapgroup SpA">Kapgroup SpA</option>
+            <option value="Itamarket SPA">Itamarket SPA</option>
+            <option value="Inv. Itahydraulic SpA">Inv. Itahydraulic SpA</option>
+            <option value="Fluid Supply Spa">Fluid Supply Spa</option>
+        </select>
+
+        <div class="search-container mb-2">
+            <input type="text" id="workerSearch" class="form-control form-control-sm" placeholder="🔍 Buscar por nombre..." onkeyup="syncSearchInput(this, event, 'side')">
+            <button type="button" id="btnClearSearch" class="btn-clear-search" onclick="clearWorkerSearch()" title="Borrar búsqueda">✕</button>
+        </div>
+
+        <div class="d-flex flex-wrap gap-1 mb-3">
+            <button class="btn btn-light border btn-sm flex-fill py-1" onclick="setFilter('all')">Todos</button>
+            <button class="btn btn-success btn-sm flex-fill py-1" onclick="setFilter('cat-vacaciones')">V/P</button>
+            <button class="btn btn-primary btn-sm flex-fill py-1" onclick="setFilter('cat-licencia')">Lic</button>
+            <button class="btn btn-danger btn-sm flex-fill py-1" onclick="setFilter('cat-ausencia')">Aus</button>
+            <button class="btn btn-dark btn-sm flex-fill py-1" onclick="setFilter('cat-retiro')">Ret/Atr</button>
         </div>
 
         <div id="workerList" style="flex: 1; overflow-y: auto;"></div>
@@ -140,13 +171,11 @@
         </div>
     </div>
 
-    <!-- Contenedor Principal del Calendario -->
     <div id="calendar-container">
         <div id="calendar"></div>
     </div>
 </div>
 
-<!-- Modal Formulario -->
 <div class="modal fade" id="eventModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -242,7 +271,6 @@
     const db = firebase.database().ref('asistencias');
     let calendar, events = [], currentFilter = 'all';
 
-    // CONFIGURACIÓN DE SEGURIDAD
     const ADMIN_PASSWORD = "Admin123"; 
     let isAdmin = false;
 
@@ -268,27 +296,17 @@
                 listDay: { buttonText: 'Día' }
             },
             
-            // CONFIGURACIÓN DE CABECERA: Filtros al lado derecho del Título
             headerToolbar: { 
                 left: 'prev,next today | dayGridMonth,listMonth,dayGridWeek,listDay',
                 center: 'title', 
                 right: 'companyFilterSelect workerSearchInput categoryButtons' 
             },
 
-            // CUSTOM BUTTONS IMPLEMENTA CONTROLES HTML DIRECTAMENTE EN LA CABECERA
+            // Marcadores de posición inyectados de forma nativa en la barra superior
             customButtons: {
-                companyFilterSelect: {
-                    text: '',
-                    click: function() {}
-                },
-                workerSearchInput: {
-                    text: '',
-                    click: function() {}
-                },
-                categoryButtons: {
-                    text: '',
-                    click: function() {}
-                }
+                companyFilterSelect: { text: '', click: function() {} },
+                workerSearchInput: { text: '', click: function() {} },
+                categoryButtons: { text: '', click: function() {} }
             },
 
             eventClick: (info) => openEditModalById(info.event.id),
@@ -318,7 +336,7 @@
 
         calendar.render();
 
-        // INSERCIÓN DE FILTROS EN LA CABECERA
+        // Inyección de filtros con clase "header-fs-filter" (Ocultos por defecto, visibles en FS)
         renderHeaderFilters();
 
         db.on('value', (snapshot) => {
@@ -330,7 +348,6 @@
         applySecurityRestrictions();
     });
 
-    // INSERCIÓN DINÁMICA DE ELEMENTOS DE FILTRO EN LA CABECERA SUPERIOR DERECHA
     function renderHeaderFilters() {
         const btnCompany = document.querySelector('.fc-companyFilterSelect-button');
         const btnSearch = document.querySelector('.fc-workerSearchInput-button');
@@ -338,64 +355,94 @@
 
         if(btnCompany) {
             btnCompany.outerHTML = `
-                <select id="companyFilter" class="form-select form-select-sm" style="width: 170px;" onchange="refreshAll()">
-                    <option value="all">🏢 Empresas</option>
-                    <option value="Itamarket EIRL">Itamarket EIRL</option>
-                    <option value="Kapgroup SpA">Kapgroup SpA</option>
-                    <option value="Itamarket SPA">Itamarket SPA</option>
-                    <option value="Inv. Itahydraulic SpA">Inv. Itahydraulic SpA</option>
-                    <option value="Fluid Supply Spa">Fluid Supply Spa</option>
-                </select>
+                <div class="header-fs-filter">
+                    <select id="companyFilterFS" class="form-select form-select-sm" style="width: 170px;" onchange="syncCompanyFilter(this.value, 'fs')">
+                        <option value="all">🏢 Empresas</option>
+                        <option value="Itamarket EIRL">Itamarket EIRL</option>
+                        <option value="Kapgroup SpA">Kapgroup SpA</option>
+                        <option value="Itamarket SPA">Itamarket SPA</option>
+                        <option value="Inv. Itahydraulic SpA">Inv. Itahydraulic SpA</option>
+                        <option value="Fluid Supply Spa">Fluid Supply Spa</option>
+                    </select>
+                </div>
             `;
         }
 
         if(btnSearch) {
             btnSearch.outerHTML = `
-                <div class="search-container" style="width: 170px;">
-                    <input type="text" id="workerSearch" class="form-control form-control-sm" placeholder="🔍 Buscar..." onkeyup="handleSearchInput(event)">
-                    <button type="button" id="btnClearSearch" class="btn-clear-search" onclick="clearWorkerSearch()" title="Borrar búsqueda">✕</button>
+                <div class="header-fs-filter">
+                    <div class="search-container" style="width: 170px;">
+                        <input type="text" id="workerSearchFS" class="form-control form-control-sm" placeholder="🔍 Buscar..." onkeyup="syncSearchInput(this, event, 'fs')">
+                        <button type="button" id="btnClearSearchFS" class="btn-clear-search" onclick="clearWorkerSearch()" title="Borrar búsqueda">✕</button>
+                    </div>
                 </div>
             `;
         }
 
         if(btnCategories) {
             btnCategories.outerHTML = `
-                <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-secondary py-1" onclick="setFilter('all')">Todos</button>
-                    <button class="btn btn-success py-1" onclick="setFilter('cat-vacaciones')">V/P</button>
-                    <button class="btn btn-primary py-1" onclick="setFilter('cat-licencia')">Lic</button>
-                    <button class="btn btn-danger py-1" onclick="setFilter('cat-ausencia')">Aus</button>
-                    <button class="btn btn-dark py-1" onclick="setFilter('cat-retiro')">Ret/Atr</button>
+                <div class="header-fs-filter">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary py-1" onclick="setFilter('all')">Todos</button>
+                        <button class="btn btn-success py-1" onclick="setFilter('cat-vacaciones')">V/P</button>
+                        <button class="btn btn-primary py-1" onclick="setFilter('cat-licencia')">Lic</button>
+                        <button class="btn btn-danger py-1" onclick="setFilter('cat-ausencia')">Aus</button>
+                        <button class="btn btn-dark py-1" onclick="setFilter('cat-retiro')">Ret/Atr</button>
+                    </div>
                 </div>
             `;
         }
     }
 
-    // MANEJO DE BÚSQUEDA Y BOTÓN DE BORRADO '✕'
-    function handleSearchInput(e) {
-        const input = document.getElementById('workerSearch');
-        const btnClear = document.getElementById('btnClearSearch');
+    // --- MANEJO Y SINCRONIZACIÓN AUTOMÁTICA DE INPUTS ---
+    function syncSearchInput(element, e, origin) {
+        const val = element.value;
+        const sideInput = document.getElementById('workerSearch');
+        const fsInput = document.getElementById('workerSearchFS');
+        const btnClearSide = document.getElementById('btnClearSearch');
+        const btnClearFS = document.getElementById('btnClearSearchFS');
 
         if (e && e.key === 'Escape') {
             clearWorkerSearch();
             return;
         }
 
-        if (input.value.length > 0) {
-            btnClear.style.display = 'block';
-        } else {
-            btnClear.style.display = 'none';
-        }
+        if(sideInput) sideInput.value = val;
+        if(fsInput) fsInput.value = val;
+
+        const displayState = val.length > 0 ? 'block' : 'none';
+        if(btnClearSide) btnClearSide.style.display = displayState;
+        if(btnClearFS) btnClearFS.style.display = displayState;
 
         refreshAll();
     }
 
+    function handleSearchInput(e) {
+        // Mantenida por retrocompatibilidad estructural interna
+        syncSearchInput(document.getElementById('workerSearch'), e, 'side');
+    }
+
     function clearWorkerSearch() {
-        const input = document.getElementById('workerSearch');
-        const btnClear = document.getElementById('btnClearSearch');
-        input.value = '';
-        btnClear.style.display = 'none';
-        input.focus();
+        const sideInput = document.getElementById('workerSearch');
+        const fsInput = document.getElementById('workerSearchFS');
+        const btnClearSide = document.getElementById('btnClearSearch');
+        const btnClearFS = document.getElementById('btnClearSearchFS');
+
+        if(sideInput) sideInput.value = '';
+        if(fsInput) fsInput.value = '';
+        if(btnClearSide) btnClearSide.style.display = 'none';
+        if(btnClearFS) btnClearFS.style.display = 'none';
+
+        refreshAll();
+    }
+
+    function syncCompanyFilter(val, origin) {
+        const sideSelect = document.getElementById('companyFilter');
+        const fsSelect = document.getElementById('companyFilterFS');
+
+        if(sideSelect) sideSelect.value = val;
+        if(fsSelect) fsSelect.value = val;
+
         refreshAll();
     }
 
