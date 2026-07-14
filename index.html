@@ -148,7 +148,7 @@
             <button class="btn btn-outline-secondary" onclick="clearDateFocus()">X</button>
         </div>
 
-        <!-- Filtro por Empresa (Original Lateral) -->
+        <!-- Filtro por Empresa -->
         <select id="companyFilter" class="form-select form-select-sm mb-2" onchange="syncCompanyFilter(this.value, 'side')">
             <option value="all">🏢 Todas las Empresas</option>
             <option value="Itamarket EIRL">Itamarket EIRL</option>
@@ -158,10 +158,10 @@
             <option value="Fluid Supply Spa">Fluid Supply Spa</option>
         </select>
 
-        <!-- Filtro por Sucursal (NUEVO) -->
+        <!-- Filtro por Sucursal -->
         <select id="branchFilter" class="form-select form-select-sm mb-2" onchange="syncBranchFilter(this.value, 'side')">
             <option value="all">📍 Todas las Sucursales</option>
-            <option value="Santiago">Santiago</option>
+            <option value="Andes">Andes</option>
             <option value="Enea">Enea</option>
             <option value="Concon">Concon</option>
             <option value="Antofagasta">Antofagasta</option>
@@ -219,12 +219,12 @@
                         </select>
                     </div>
 
-                    <!-- NUEVO CAMPO OPCIONAL: SUCURSAL -->
+                    <!-- CAMPO OPCIONAL: SUCURSAL (CON ANDES) -->
                     <div class="mb-2">
                         <label class="form-label small">Sucursal <span class="text-muted">(Opcional)</span></label>
                         <select id="branchName" class="form-select">
                             <option value="">-- Sin Sucursal asignada --</option>
-                            <option value="Santiago">Santiago</option>
+                            <option value="Andes">Andes</option>
                             <option value="Enea">Enea</option>
                             <option value="Concon">Concon</option>
                             <option value="Antofagasta">Antofagasta</option>
@@ -421,7 +421,7 @@
                 <div class="header-fs-filter">
                     <select id="branchFilterFS" class="form-select form-select-sm" style="width: 140px;" onchange="syncBranchFilter(this.value, 'fs')">
                         <option value="all">📍 Sucursales</option>
-                        <option value="Santiago">Santiago</option>
+                        <option value="Andes">Andes</option>
                         <option value="Enea">Enea</option>
                         <option value="Concon">Concon</option>
                         <option value="Antofagasta">Antofagasta</option>
