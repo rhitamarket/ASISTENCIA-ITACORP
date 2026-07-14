@@ -126,7 +126,7 @@
 <button id="btnToggleMenu" class="btn btn-primary" onclick="toggleSidebar()">☰</button>
 
 <div class="main-wrapper" id="mainWrapper">
-    <!-- Barra Lateral (VISTA NORMAL ORIGINAL MANTENIDA) -->
+    <!-- Barra Lateral -->
     <div id="sidebar">
         <h5 class="mb-3">Asistencia RRHH v11</h5>
         <div class="d-grid gap-2 mb-3">
@@ -158,13 +158,23 @@
             <option value="Fluid Supply Spa">Fluid Supply Spa</option>
         </select>
 
-        <!-- Campo de Búsqueda (Original Lateral) -->
+        <!-- Filtro por Sucursal (NUEVO) -->
+        <select id="branchFilter" class="form-select form-select-sm mb-2" onchange="syncBranchFilter(this.value, 'side')">
+            <option value="all">📍 Todas las Sucursales</option>
+            <option value="Santiago">Santiago</option>
+            <option value="Enea">Enea</option>
+            <option value="Concon">Concon</option>
+            <option value="Antofagasta">Antofagasta</option>
+            <option value="Concepción">Concepción</option>
+        </select>
+
+        <!-- Campo de Búsqueda -->
         <div class="search-container mb-2">
             <input type="text" id="workerSearch" class="form-control form-control-sm" placeholder="🔍 Buscar por nombre..." onkeyup="syncSearchInput(this, event, 'side')">
             <button type="button" id="btnClearSearch" class="btn-clear-search" onclick="clearWorkerSearch()" title="Borrar búsqueda">✕</button>
         </div>
 
-        <!-- Filtro por Categorías (Original Lateral) -->
+        <!-- Filtro por Categorías -->
         <div class="d-flex flex-wrap gap-1 mb-3">
             <button class="btn btn-light border btn-sm flex-fill py-1" onclick="setFilter('all')">Todos</button>
             <button class="btn btn-success btn-sm flex-fill py-1" onclick="setFilter('cat-vacaciones')">V/P</button>
@@ -208,6 +218,20 @@
                             <option value="Fluid Supply Spa">Fluid Supply Spa</option>
                         </select>
                     </div>
+
+                    <!-- NUEVO CAMPO OPCIONAL: SUCURSAL -->
+                    <div class="mb-2">
+                        <label class="form-label small">Sucursal <span class="text-muted">(Opcional)</span></label>
+                        <select id="branchName" class="form-select">
+                            <option value="">-- Sin Sucursal asignada --</option>
+                            <option value="Santiago">Santiago</option>
+                            <option value="Enea">Enea</option>
+                            <option value="Concon">Concon</option>
+                            <option value="Antofagasta">Antofagasta</option>
+                            <option value="Concepción">Concepción</option>
+                        </select>
+                    </div>
+
                     <div class="mb-2">
                         <label class="form-label small">Nombre Trabajador</label>
                         <input type="text" id="workerName" class="form-control" required>
@@ -310,11 +334,12 @@
             headerToolbar: { 
                 left: 'prev,next today | dayGridMonth,listMonth,dayGridWeek,listDay',
                 center: 'title', 
-                right: 'companyFilterSelect workerSearchInput categoryButtons' 
+                right: 'companyFilterSelect branchFilterSelect workerSearchInput categoryButtons' 
             },
 
             customButtons: {
                 companyFilterSelect: { text: '', click: function() {} },
+                branchFilterSelect: { text: '', click: function() {} },
                 workerSearchInput: { text: '', click: function() {} },
                 categoryButtons: { text: '', click: function() {} }
             },
@@ -322,7 +347,6 @@
             eventClick: (info) => openEditModalById(info.event.id),
             
             eventDidMount: function(info) {
-                // SI ESTAMOS EN UNA VISTA DE LISTA (listMonth o listDay)
                 if (info.view.type.startsWith('list')) {
                     const tr = info.el;
                     const className = info.event.classNames[0];
@@ -342,12 +366,11 @@
                         l.style.setProperty('color', '#ffffff', 'important');
                     });
 
-                    // INYECCIÓN DEL COMENTARIO / OBSERVACIÓN AL LADO DEL NOMBRE
+                    // INYECCIÓN DEL COMENTARIO / OBSERVACIÓN AL LADO DEL NOMBRE EN LISTAS
                     const props = info.event.extendedProps;
                     if (props && props.comment && props.comment.trim() !== '') {
                         const titleCell = tr.querySelector('.fc-list-event-title a');
                         if (titleCell) {
-                            // Validamos si ya se agregó para evitar duplicados en re-renderizados
                             if (!titleCell.querySelector('.fc-list-comment-span')) {
                                 const commentSpan = document.createElement('span');
                                 commentSpan.className = 'fc-list-comment-span';
@@ -374,13 +397,14 @@
 
     function renderHeaderFilters() {
         const btnCompany = document.querySelector('.fc-companyFilterSelect-button');
+        const btnBranch = document.querySelector('.fc-branchFilterSelect-button');
         const btnSearch = document.querySelector('.fc-workerSearchInput-button');
         const btnCategories = document.querySelector('.fc-categoryButtons-button');
 
         if(btnCompany) {
             btnCompany.outerHTML = `
                 <div class="header-fs-filter">
-                    <select id="companyFilterFS" class="form-select form-select-sm" style="width: 170px;" onchange="syncCompanyFilter(this.value, 'fs')">
+                    <select id="companyFilterFS" class="form-select form-select-sm" style="width: 150px;" onchange="syncCompanyFilter(this.value, 'fs')">
                         <option value="all">🏢 Empresas</option>
                         <option value="Itamarket EIRL">Itamarket EIRL</option>
                         <option value="Kapgroup SpA">Kapgroup SpA</option>
@@ -392,10 +416,25 @@
             `;
         }
 
+        if(btnBranch) {
+            btnBranch.outerHTML = `
+                <div class="header-fs-filter">
+                    <select id="branchFilterFS" class="form-select form-select-sm" style="width: 140px;" onchange="syncBranchFilter(this.value, 'fs')">
+                        <option value="all">📍 Sucursales</option>
+                        <option value="Santiago">Santiago</option>
+                        <option value="Enea">Enea</option>
+                        <option value="Concon">Concon</option>
+                        <option value="Antofagasta">Antofagasta</option>
+                        <option value="Concepción">Concepción</option>
+                    </select>
+                </div>
+            `;
+        }
+
         if(btnSearch) {
             btnSearch.outerHTML = `
                 <div class="header-fs-filter">
-                    <div class="search-container" style="width: 170px;">
+                    <div class="search-container" style="width: 150px;">
                         <input type="text" id="workerSearchFS" class="form-control form-control-sm" placeholder="🔍 Buscar..." onkeyup="syncSearchInput(this, event, 'fs')">
                         <button type="button" id="btnClearSearchFS" class="btn-clear-search" onclick="clearWorkerSearch()" title="Borrar búsqueda">✕</button>
                     </div>
@@ -464,6 +503,16 @@
         refreshAll();
     }
 
+    function syncBranchFilter(val, origin) {
+        const sideSelect = document.getElementById('branchFilter');
+        const fsSelect = document.getElementById('branchFilterFS');
+
+        if(sideSelect) sideSelect.value = val;
+        if(fsSelect) fsSelect.value = val;
+
+        refreshAll();
+    }
+
     function toggleAdminMode() {
         if (!isAdmin) {
             const pass = prompt("Introduzca la clave de Administrador para habilitar modificaciones:");
@@ -497,7 +546,6 @@
 
     function setFilter(f) { currentFilter = f; refreshAll(); }
 
-    // Corregido el desfase de zona horaria al presionar "Hoy"
     function setTodayFocus() {
         const hoy = new Date();
         const offset = hoy.getTimezoneOffset();
@@ -515,9 +563,11 @@
         if (!calendar) return;
         const searchInput = document.getElementById('workerSearch');
         const companyInput = document.getElementById('companyFilter');
+        const branchInput = document.getElementById('branchFilter');
         
         const search = searchInput ? searchInput.value.toLowerCase() : "";
         const selectedCompany = companyInput ? companyInput.value : "all";
+        const selectedBranch = branchInput ? branchInput.value : "all";
         const dateFocus = document.getElementById('dateFocusFilter').value; 
         
         if(dateFocus) {
@@ -528,6 +578,7 @@
             const mS = (e.pureName || "").toLowerCase().includes(search);
             const mC = (currentFilter === 'all' || e.rawType === currentFilter);
             const mComp = (selectedCompany === 'all' || e.company === selectedCompany);
+            const mBranch = (selectedBranch === 'all' || e.branch === selectedBranch);
             
             let mDate = true;
             if(dateFocus) {
@@ -536,7 +587,7 @@
                 mDate = (dateFocus >= fStart && dateFocus <= fEnd);
             }
             
-            return mS && mC && mComp && mDate;
+            return mS && mC && mComp && mBranch && mDate;
         });
 
         const calendarEvents = filtered.map(e => {
@@ -548,14 +599,16 @@
                 letraDistintiva = (e.subtipoRetiro === 'Atraso') ? ' [A]' : ' [R]';
             }
 
+            let branchTag = e.branch ? ` [Suc: ${e.branch}]` : '';
+
             return {
                 id: e.id,
-                title: e.pureName + (e.exitTime ? ' ('+e.exitTime+')' : '') + (e.distintivo ? ' ' + e.distintivo : '') + letraDistintiva,
+                title: e.pureName + branchTag + (e.exitTime ? ' ('+e.exitTime+')' : '') + (e.distintivo ? ' ' + e.distintivo : '') + letraDistintiva,
                 start: e.start,
                 end: endF.toISOString().split('T')[0],
                 allDay: true,
                 className: [e.rawType],
-                extendedProps: { ...e } // Pasa todas las propiedades originales (incluyendo comment)
+                extendedProps: { ...e }
             };
         });
 
@@ -566,8 +619,9 @@
         if(list) {
             list.innerHTML = '';
             filtered.sort((a,b) => a.pureName.localeCompare(b.pureName)).forEach(ev => {
+                const sucText = ev.branch ? ` (${ev.branch})` : '';
                 list.innerHTML += `<div class="sidebar-item" onclick="openEditModalById('${ev.id}')">
-                    <strong>${ev.pureName}</strong><br>
+                    <strong>${ev.pureName}${sucText}</strong><br>
                     <small>${formatToDMY(ev.start)} al ${formatToDMY(ev.realEnd || ev.start)}</small></div>`;
             });
         }
@@ -579,6 +633,7 @@
         forceCloseSidebar();
         document.getElementById('editId').value = original.id;
         document.getElementById('companyName').value = original.company || '';
+        document.getElementById('branchName').value = original.branch || '';
         document.getElementById('workerName').value = original.pureName || '';
         document.getElementById('regType').value = original.rawType || 'cat-vacaciones';
         document.getElementById('startDate').value = original.start;
@@ -622,6 +677,7 @@
         document.getElementById('attendanceForm').reset();
         document.getElementById('editId').value = '';
         document.getElementById('companyName').value = '';
+        document.getElementById('branchName').value = '';
         document.getElementById('subtipoRetiro').value = 'Atraso';
         
         const formElements = document.getElementById('attendanceForm').elements;
@@ -642,6 +698,7 @@
         const type = document.getElementById('regType').value;
         const data = {
             company: document.getElementById('companyName').value,
+            branch: document.getElementById('branchName').value,
             pureName: document.getElementById('workerName').value,
             start: document.getElementById('startDate').value,
             realEnd: (type === 'cat-retiro') ? document.getElementById('startDate').value : (document.getElementById('endDate').value || document.getElementById('startDate').value),
@@ -666,6 +723,7 @@
     function exportToExcel() {
         const data = events.map(e => ({ 
             Empresa: e.company || 'No especificada',
+            Sucursal: e.branch || 'Sin sucursal',
             Trabajador: e.pureName, 
             Tipo: e.rawType === 'cat-retiro' ? (e.subtipoRetiro || 'Atraso/Retiro') : e.rawType, 
             Inicio: formatToDMY(e.start), 
